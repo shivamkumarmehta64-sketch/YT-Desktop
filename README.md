@@ -1,28 +1,45 @@
 # YT Desktop
 
-Lightweight Windows desktop apps for **YouTube** and **YouTube Music** with premium features.
+Lightweight Windows desktop apps for **YouTube** and **YouTube Music** with premium features — no browser needed, no extensions, 27 MB RAM each.
 
 ## Features
-- **Ad blocking** — fetch/XHR interception + DOM cleanup
-- **Background playback** — audio continues when minimized
-- **Audio-only mode** — hides video stream
-- **Sponsor skip** — auto-skips sponsored segments
-- **Media keys** — Play/Pause/Next/Prev
-- **System tray** — minimize to tray
-- **~27 MB RAM** per app
+
+| Feature | YouTube | YouTube Music |
+|---|---|---|
+| Ad blocking | ✅ fetch/XHR/DOM | ✅ fetch/XHR/DOM |
+| Background playback | ✅ | ✅ |
+| Audio-only mode | ✅ | ✅ |
+| Sponsor skip | ✅ | ✅ |
+| Media keys | ✅ Play/Pause/Next/Prev | ✅ Play/Pause/Next/Prev |
+| System tray | ✅ Minimize to tray | ✅ Minimize to tray |
+| Download audio | ✅ via yt-dlp | ✅ via yt-dlp |
+| RAM usage | ~27 MB | ~27 MB |
 
 ## Download
-Download the latest release from [Releases](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases).
 
-### Usage
+[**Download latest release**](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases)
+
 1. Download `YT_Desktop_Package.zip`
 2. Extract anywhere
 3. Run `YouTube.exe` or `YouTubeMusic.exe`
 
-No installation required. Works on Windows 10/11.
+**Requirements:** Windows 10 or 11 (WebView2 Runtime included).
 
-## Build from source
+## Project Structure
+
+```
+yt-desktop/       — YouTube app source (Tauri v2 + Rust)
+ytm-desktop/      — YouTube Music app source (Tauri v2 + Rust)
+```
+
+### Build from source
+
 ```bash
+cd yt-desktop
 npm install
 npx tauri build
 ```
+
+## License
+
+MIT
