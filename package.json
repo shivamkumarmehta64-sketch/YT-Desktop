@@ -1,6 +1,6 @@
 {
   "name": "yt-desktop",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "YouTube + YouTube Music unified desktop app with ad-block, background playback, PiP, sleep timer, sponsor skip",
   "author": "shivamkumarmehta64-sketch",
   "main": "main.js",
