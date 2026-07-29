@@ -1,45 +1,42 @@
 # YT Desktop
 
-Lightweight Windows desktop apps for **YouTube** and **YouTube Music** with premium features — no browser needed, no extensions, 27 MB RAM each.
+Lightweight Windows desktop apps for YouTube and YouTube Music with premium features.
 
 ## Features
 
-| Feature | YouTube | YouTube Music |
-|---|---|---|
-| Ad blocking | ✅ fetch/XHR/DOM | ✅ fetch/XHR/DOM |
-| Background playback | ✅ | ✅ |
-| Audio-only mode | ✅ | ✅ |
-| Sponsor skip | ✅ | ✅ |
-| Media keys | ✅ Play/Pause/Next/Prev | ✅ Play/Pause/Next/Prev |
-| System tray | ✅ Minimize to tray | ✅ Minimize to tray |
-| Download audio | ✅ via yt-dlp | ✅ via yt-dlp |
-| RAM usage | ~27 MB | ~27 MB |
+- **Ad blocking** — network-level + DOM removal, no ads
+- **Background playback** — audio continues when window is minimized
+- **Picture-in-Picture** — Ctrl+Shift+P or tray menu
+- **Sponsor skip** — auto-skips sponsored segments
+- **Audio-only mode** — hide video to save bandwidth
+- **Close to tray** — app stays running in system tray
+- **Media keys** — play/pause/skip via keyboard
+- **Download music** — built-in yt-dlp integration
 
-## Download
+## Install
 
-[**Download latest release**](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases)
+Open PowerShell and run:
 
-1. Download `YT_Desktop_Package.zip`
-2. Extract anywhere
-3. Run `YouTube.exe` or `YouTubeMusic.exe`
-
-**Requirements:** Windows 10 or 11 (WebView2 Runtime included).
-
-## Project Structure
-
-```
-yt-desktop/       — YouTube app source (Tauri v2 + Rust)
-ytm-desktop/      — YouTube Music app source (Tauri v2 + Rust)
+```powershell
+iex "& { $(irm https://raw.githubusercontent.com/shivamkumarmehta64-sketch/YT-Desktop/main/install.ps1) }"
 ```
 
-### Build from source
+Or download the latest `YT_Desktop_Package.zip` from [Releases](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases) and extract to any folder.
+
+**Prerequisites:** [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) (included in Win 11, most Win 10)
+
+## Usage
+
+| Action | Shortcut |
+|--------|----------|
+| Picture-in-Picture | `Ctrl+Shift+P` |
+| Show window | Tray menu → Show |
+| Quit | Tray menu → Quit |
+
+## Build from source
 
 ```bash
-cd yt-desktop
-npm install
-npx tauri build
+rustup target add x86_64-pc-windows-gnu
+cargo install tauri-cli --version "^2"
+cargo tauri build --bundles none
 ```
-
-## License
-
-MIT

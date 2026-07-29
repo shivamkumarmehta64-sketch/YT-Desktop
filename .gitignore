@@ -1,2 +1,9 @@
 node_modules/
 target/
+src-tauri/target/
+src-tauri/node_modules/
+*.dll
+*.exe
+*.zip
+Cargo.lock
+.env
