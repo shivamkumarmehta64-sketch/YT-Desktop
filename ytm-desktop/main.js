@@ -36,13 +36,13 @@ app.whenReady().then(async () => {
   });
   win.loadURL('https://music.youtube.com');
   globalShortcut.register('MediaPlayPause', () => win.webContents.executeJavaScript(
-    "document.querySelector('.play-pause-button')?.click()"
+    "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=play]')?.click() || document.querySelector('.play-pause-button')?.click()"
   ));
   globalShortcut.register('MediaNextTrack', () => win.webContents.executeJavaScript(
-    "document.querySelector('.next-button')?.click()"
+    "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=skip]')?.click() || document.querySelector('.next-button')?.click()"
   ));
   globalShortcut.register('MediaPreviousTrack', () => win.webContents.executeJavaScript(
-    "document.querySelector('.previous-button')?.click()"
+    "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=previous]')?.click() || document.querySelector('.previous-button')?.click()"
   ));
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
