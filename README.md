@@ -1,42 +1,69 @@
 # YT Desktop
 
-Lightweight Windows desktop apps for YouTube and YouTube Music with premium features.
+**4.6 MB** lightweight Windows apps for YouTube and YouTube Music, with all premium features — ad blocking, background playback, picture-in-picture, sleep timer, sponsor skip, close-to-tray.
 
 ## Features
 
-- **Ad blocking** — network-level + DOM removal, no ads
-- **Background playback** — audio continues when window is minimized
-- **Picture-in-Picture** — Ctrl+Shift+P or tray menu
-- **Sponsor skip** — auto-skips sponsored segments
-- **Audio-only mode** — hide video to save bandwidth
-- **Close to tray** — app stays running in system tray
-- **Media keys** — play/pause/skip via keyboard
-- **Download music** — built-in yt-dlp integration
+- ✅ **Ad blocking** — no video/banner/search ads
+- ✅ **Background playback** — audio keeps playing when minimized
+- ✅ **Picture-in-Picture** — `Ctrl+Shift+P` for floating video
+- ✅ **Sleep timer** — `Ctrl+Shift+S` to auto-pause after N minutes
+- ✅ **Sponsor skip** — auto-skips sponsored segments
+- ✅ **Close to tray** — app stays in system tray when closed
+- ✅ **Media keys** — play/pause/skip via keyboard
+- ✅ **Account sync** — sign in once, works in both apps
+
+## Download
+
+**File size:** 3.8 MB ZIP
+
+| Download | Link |
+|----------|------|
+| Direct ZIP | [YT_Desktop_Package.zip](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases/latest/download/YT_Desktop_Package.zip) |
+| All releases | [GitHub Releases](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases) |
 
 ## Install
 
-Open PowerShell and run:
+### Option 1: One-command install (recommended)
+
+Open **PowerShell** and run:
 
 ```powershell
 iex "& { $(irm https://raw.githubusercontent.com/shivamkumarmehta64-sketch/YT-Desktop/main/install.ps1) }"
 ```
 
-Or download the latest `YT_Desktop_Package.zip` from [Releases](https://github.com/shivamkumarmehta64-sketch/YT-Desktop/releases) and extract to any folder.
+This downloads, extracts, and adds a desktop shortcut.
 
-**Prerequisites:** [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) (included in Win 11, most Win 10)
+### Option 2: Manual install
+
+1. Download `YT_Desktop_Package.zip` above
+2. Extract to any folder (e.g. `C:\YT Desktop`)
+3. Run `YouTube.exe` or `YouTubeMusic.exe`
+
+### Prerequisites
+
+**None.** WebView2 Runtime comes with Windows 11 and most Windows 10 systems. If missing, it installs automatically.
 
 ## Usage
 
-| Action | Shortcut |
-|--------|----------|
-| Picture-in-Picture | `Ctrl+Shift+P` |
-| Show window | Tray menu → Show |
-| Quit | Tray menu → Quit |
+| Action | How |
+|--------|-----|
+| **Close to tray** | Click X — app hides to system tray |
+| **Quit** | `Ctrl+Q` or right-click tray icon → Quit App |
+| **PiP** | `Ctrl+Shift+P` |
+| **Sleep timer** | `Ctrl+Shift+S` (enter minutes) |
+| **Show window** | Right-click tray → Show Window |
 
 ## Build from source
 
 ```bash
 rustup target add x86_64-pc-windows-gnu
-cargo install tauri-cli --version "^2"
-cargo tauri build --bundles none
+npm install
+npm run build
 ```
+
+## Tech
+
+- **Tauri v2** (Rust + WebView2) — 4.6 MB per binary
+- **Ad blocking** — network + DOM level (fetch/XHR interception + CSS removal)
+- **Settings** persist as `config.json` next to the exe
