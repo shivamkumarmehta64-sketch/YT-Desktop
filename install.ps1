@@ -1,34 +1,28 @@
-param([switch]$YoutubeMusic)
-
 $repo = "shivamkumarmehta64-sketch/YT-Desktop"
 $dest = "$env:APPDATA\YT Desktop"
-$zip = "$env:TEMP\YT_Desktop_Package.zip"
-$url = "https://github.com/$repo/releases/latest/download/YT_Desktop_Package.zip"
+$exe = "$dest\YT-Desktop.exe"
+$url = "https://github.com/$repo/releases/latest/download/YT-Desktop-2.0.0-portable.exe"
 
-Write-Host "YouTube Desktop Installer" -ForegroundColor Cyan
-Write-Host "=========================" -ForegroundColor Cyan
-Write-Host "Downloading (3.8 MB)..." -ForegroundColor Gray
+Write-Host "YT Desktop Installer" -ForegroundColor Cyan
+Write-Host "====================" -ForegroundColor Cyan
+Write-Host "Downloading (74 MB)..." -ForegroundColor Gray
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
-Expand-Archive -Path $zip -DestinationPath $dest -Force
-Remove-Item $zip -Force
+Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
 
-$exe = if ($YoutubeMusic) { "YouTubeMusic.exe" } else { "YouTube.exe" }
-$lnk = "$env:USERPROFILE\Desktop\" + ($exe -replace '\.exe$', '.lnk')
-
+$lnk = "$env:USERPROFILE\OneDrive\Desktop\YT Desktop.lnk"
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($lnk)
-$shortcut.TargetPath = "$dest\$exe"
+$shortcut.TargetPath = $exe
 $shortcut.WorkingDirectory = $dest
 $shortcut.Save()
 
 Write-Host "`nDone!" -ForegroundColor Green
-Write-Host "YouTube installed to: $dest" -ForegroundColor Gray
+Write-Host "Installed to: $dest" -ForegroundColor Gray
 Write-Host "Shortcut added to desktop" -ForegroundColor Gray
 Write-Host "`nTips:" -ForegroundColor Cyan
+Write-Host "  Ctrl+1 / Ctrl+2  = YouTube / YouTube Music"
 Write-Host "  Ctrl+Q          = Quit app"
 Write-Host "  Ctrl+Shift+P    = Picture-in-Picture"
 Write-Host "  Ctrl+Shift+S    = Sleep timer"

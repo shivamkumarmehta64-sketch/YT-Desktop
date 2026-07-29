@@ -1,4 +1,5 @@
 const { app, BrowserWindow, session, globalShortcut, Tray, Menu, nativeImage, ipcMain } = require('electron');
+const path = require('path');
 
 const adDomains = [
   'doubleclick.net','googlesyndication.com','googleadservices.com',
@@ -77,8 +78,8 @@ app.whenReady().then(async () => {
     }
   });
 
-  var icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  var trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 16, height: 16 });
+  tray = new Tray(trayIcon);
   tray.setToolTip('YT Desktop');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: function() { mainWindow.show() } },
