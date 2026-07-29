@@ -1,10 +1,13 @@
 {
   "name": "yt-desktop",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "description": "YouTube + YouTube Music unified desktop app with ad-block, background playback, PiP, sleep timer, sponsor skip",
+  "author": "shivamkumarmehta64-sketch",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win nsis",
+    "dist-portable": "electron-builder --win portable",
     "dist-linux": "electron-builder --linux AppImage"
   },
   "devDependencies": {
@@ -12,10 +15,16 @@
     "electron-builder": "^25.0.0"
   },
   "build": {
-    "appId": "com.youtube.desktop",
-    "productName": "YouTube",
-    "win": { "target": ["nsis"], "sign": false },
-    "linux": { "target": ["AppImage"], "category": "Network" },
-    "extraResources": [{ "from": "../ublock/uBlock0.chromium", "to": "ublock" }]
+    "appId": "com.ytdesktop.app",
+    "productName": "YT Desktop",
+    "win": {
+      "target": ["nsis", "portable"],
+      "sign": false
+    },
+    "portable": {
+      "artifactName": "YT-Desktop-${version}-portable.${ext}"
+    },
+    "linux": { "target": ["AppImage"], "category": "AudioVideo" },
+    "extraResources": [{ "from": "ublock/uBlock0.chromium", "to": "ublock" }]
   }
 }
