@@ -202,9 +202,10 @@ pub fn run() {
                 WebviewUrl::External("https://music.youtube.com".parse().unwrap()),
             )
                 .title("YouTube Music")
-                .inner_size(1200.0, 800.0)
-                .min_inner_size(800.0, 600.0)
+                .inner_size(1280.0, 800.0)
+                .min_inner_size(900.0, 600.0)
                 .center()
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
                 .on_page_load(move |wv, payload| {
                     if payload.event() == PageLoadEvent::Finished {
                         let _ = wv.eval(&script);
