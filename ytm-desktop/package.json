@@ -4,7 +4,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "dist-linux": "electron-builder --linux AppImage"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -14,6 +15,7 @@
     "appId": "com.youtube.music",
     "productName": "YouTube Music",
     "win": { "target": ["nsis"], "sign": false },
+    "linux": { "target": ["AppImage"], "category": "Audio" },
     "extraResources": [{ "from": "../ublock/uBlock0.chromium", "to": "ublock" }]
   }
 }
