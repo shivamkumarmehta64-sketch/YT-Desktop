@@ -1,20 +1,19 @@
 {
   "name": "yt-desktop",
-  "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "main": "main.js",
   "scripts": {
-    "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
   },
-  "dependencies": {
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-shell": "^2.0.0",
-    "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-notification": "^2.0.0"
+  "build": {
+    "appId": "com.youtube.desktop",
+    "productName": "YouTube",
+    "win": { "target": ["portable"], "sign": false },
+    "extraResources": [{ "from": "../ublock/uBlock0.chromium", "to": "ublock" }]
   }
 }
