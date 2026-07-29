@@ -40,6 +40,7 @@ body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
     <button id="pip-btn" title="PiP (Ctrl+Shift+P)">⊞</button>
     <button id="sleep-btn" title="Sleep timer (Ctrl+Shift+S)">⏱</button>
     <button id="tray-btn" title="Minimize to tray">_</button>
+    <button id="quit-btn" title="Quit (Ctrl+Q)">⏻</button>
   </div>
 </div>
 <div id="player-wrap"></div>
@@ -147,7 +148,8 @@ function toggleSleepTimer() {
 
 document.getElementById('pip-btn').addEventListener('click', togglePip)
 document.getElementById('sleep-btn').addEventListener('click', toggleSleepTimer)
-document.getElementById('tray-btn').addEventListener('click', function() { window.api.minimizeToTray() })
+document.getElementById('tray-btn').addEventListener('click', function() { window.api.minimizeToTray(); showToast('Minimized to tray') })
+document.getElementById('quit-btn').addEventListener('click', function() { window.api.quitApp() })
 
 document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') { e.preventDefault(); togglePip() }

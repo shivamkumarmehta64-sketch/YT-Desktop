@@ -299,10 +299,13 @@ app.whenReady().then(async () => {
   mainWindow.once('ready-to-show', function() { mainWindow.show() })
 
   mainWindow.on('close', function(e) {
-    if (!app.isQuitting) { e.preventDefault(); mainWindow.hide() }
+    if (!app.isQuitting) { e.preventDefault(); mainWindow.hide(); mainWindow.webContents.executeJavaScript("showToast('Minimized to tray. Right-click tray icon to Quit.')") }
   })
 
-  var trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 16, height: 16 })
+  app.setAppUserModelId('com.ytdesktop.app')
+  var trayIconPath = path.join(__dirname, 'build', 'tray.png')
+  if (!require('fs').existsSync(trayIconPath)) trayIconPath = path.join(__dirname, 'build', 'icon.png')
+  var trayIcon = nativeImage.createFromPath(trayIconPath)
   tray = new Tray(trayIcon)
   tray.setToolTip('YT Desktop')
   tray.setContextMenu(Menu.buildFromTemplate([
