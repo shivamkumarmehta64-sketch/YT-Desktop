@@ -15,11 +15,9 @@ body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
 #features button{background:transparent;border:none;color:#888;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;transition:all .12s ease;display:flex;align-items:center;justify-content:center}
 #features button:hover{background:rgba(255,255,255,0.08);color:#fff}
 #features button.active-btn{color:#ff0033}
-#webview{flex:1;display:flex}
-#webview webview{flex:1}
+#player-wrap{flex:1;display:flex}
 #pip-window{display:none;position:fixed;bottom:80px;right:20px;width:320px;height:200px;border-radius:12px;overflow:hidden;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid #2a2a2a;background:#000}
 #pip-window.active{display:block}
-#pip-window webview{width:100%;height:100%}
 #sleep-timer{display:none;position:fixed;bottom:20px;right:20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:12px 16px;z-index:9998;font-size:12px;color:#ccc;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
 #sleep-timer.active{display:block}
 #sleep-timer span{color:#ff0033;font-weight:600}
@@ -29,147 +27,138 @@ body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
 </head>
 <body>
 <div id="tabs">
-  <div class="tab active" data-url="https://youtube.com" data-icon="yt">
+  <div class="tab active" data-url="https://youtube.com">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2c-.3-1.1-1.1-1.9-2.2-2.2C19.4 3.5 12 3.5 12 3.5s-7.4 0-9.3.5C1.6 4.3.8 5.1.5 6.2 0 8.2 0 12 0 12s0 3.8.5 5.8c.3 1.1 1.1 1.9 2.2 2.2 1.9.5 9.3.5 9.3.5s7.4 0 9.3-.5c1.1-.3 1.9-1.1 2.2-2.2.5-2 .5-5.8.5-5.8s0-3.8-.5-5.8zM9.5 15.5V8.5l6.2 3.5-6.2 3.5z"/></svg>
     YouTube
   </div>
-  <div class="tab" data-url="https://music.youtube.com" data-icon="ytm">
+  <div class="tab" data-url="https://music.youtube.com">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
     YouTube Music
   </div>
   <div id="spacer"></div>
   <div id="features">
-    <button id="pip-btn" title="Picture-in-Picture (Ctrl+Shift+P)">⊞</button>
+    <button id="pip-btn" title="PiP (Ctrl+Shift+P)">⊞</button>
     <button id="sleep-btn" title="Sleep timer (Ctrl+Shift+S)">⏱</button>
-    <button id="tray-btn" title="Minimize to tray (close)">_</button>
+    <button id="tray-btn" title="Minimize to tray">_</button>
   </div>
 </div>
-<div id="webview">
-  <webview id="player" preload="./preload.js" allowpopups webpreferences="contextIsolation=no"></webview>
-</div>
-<div id="pip-window"><webview id="pip-player" preload="./preload.js"></webview></div>
+<div id="player-wrap"></div>
+<div id="pip-window"></div>
 <div id="sleep-timer">Sleeping in <span id="sleep-countdown">0:00</span></div>
 <div class="toast" id="toast"></div>
 <script>
-const webview = document.getElementById('player')
-const pipWebview = document.getElementById('pip-player')
-const tabs = document.querySelectorAll('.tab')
-const toast = document.getElementById('toast')
-let currentService = 'youtube'
-let pipActive = false
-let pipVideoUrl = ''
-let sleepMinutes = 0
-let sleepInterval = null
+var toast = document.getElementById('toast')
+var wrap = document.getElementById('player-wrap')
+var pipWindow = document.getElementById('pip-window')
+var tabs = document.querySelectorAll('.tab')
+var activeTab = 0
+var sleepInterval = null
+var pipWebview = null
 
 function showToast(msg) {
-  toast.textContent = msg
-  toast.classList.add('show')
-  setTimeout(() => toast.classList.remove('show'), 2000)
+  toast.textContent = msg; toast.classList.add('show')
+  setTimeout(function() { toast.classList.remove('show') }, 2000)
 }
 
-tabs.forEach(t => t.addEventListener('click', function() {
-  tabs.forEach(x => x.classList.remove('active'))
-  this.classList.add('active')
-  const url = this.dataset.url
-  currentService = url.includes('music') ? 'music' : 'youtube'
-  webview.src = 'about:blank'
-  setTimeout(function() { webview.src = url }, 30)
-}))
+// ── create a fresh webview (old one is destroyed, freeing RAM) ───────────────
+function createWebview(src) {
+  var old = wrap.querySelector('webview')
+  if (old) {
+    old.src = 'about:blank'
+    old.remove()
+  }
+  var wv = document.createElement('webview')
+  wv.setAttribute('preload', './preload.js')
+  wv.setAttribute('allowpopups', '')
+  wv.setAttribute('webpreferences', 'contextIsolation=no')
+  wv.style.flex = '1'
+  wv.src = src
+  wrap.appendChild(wv)
+  wv.addEventListener('new-window', function(e) {
+    if (e.url.startsWith('https://')) { wv.src = e.url }
+  })
+  return wv
+}
 
-document.getElementById('pip-btn').addEventListener('click', togglePip)
-document.getElementById('sleep-btn').addEventListener('click', toggleSleepTimer)
-document.getElementById('tray-btn').addEventListener('click', () => window.api.minimizeToTray())
+function switchTab(index) {
+  if (index === activeTab) return
+  tabs.forEach(function(t) { t.classList.remove('active') })
+  tabs[index].classList.add('active')
+  activeTab = index
+  createWebview(tabs[index].dataset.url)
+}
 
+tabs.forEach(function(t, i) {
+  t.addEventListener('click', function() { switchTab(i) })
+})
+
+// ── pip ──────────────────────────────────────────────────────────────────────
 function togglePip() {
-  if (pipActive) {
+  if (pipWebview) {
     pipWebview.src = 'about:blank'
-    document.getElementById('pip-window').classList.remove('active')
-    document.getElementById('pip-btn').classList.remove('active-btn')
-    pipActive = false
+    pipWebview.remove()
+    pipWebview = null
+    pipWindow.classList.remove('active')
     showToast('PiP closed')
     return
   }
-  webview.executeJavaScript(`
-    (function() {
-      var v = document.querySelector('video');
-      if (v && !v.paused) {
-        return v.src || (window.location.href + '#pip');
-      }
-      return null;
-    })()
-  `).then(src => {
-    if (src) {
-      pipWebview.src = currentService === 'music' ? 'https://music.youtube.com' : 'https://youtube.com'
-      document.getElementById('pip-window').classList.add('active')
-      document.getElementById('pip-btn').classList.add('active-btn')
-      pipActive = true
+  var wv = wrap.querySelector('webview')
+  if (!wv) return
+  wv.executeJavaScript("(function(){var v=document.querySelector('video');return v&&!v.paused?v.src||'playing':null})()")
+    .then(function(r) {
+      if (!r) { showToast('No video playing'); return }
+      var w = document.createElement('webview')
+      w.style.cssText = 'width:100%;height:100%'
+      w.src = tabs[activeTab].dataset.url
+      pipWindow.appendChild(w)
+      pipWindow.classList.add('active')
+      pipWebview = w
       showToast('PiP active')
-      setTimeout(() => {
-        pipWebview.executeJavaScript(`
-          var v = document.querySelector('video');
-          if (v) { v.play(); }
-        `)
-      }, 2000)
-    } else {
-      showToast('No video playing')
-    }
-  })
+    })
 }
 
+// ── sleep timer ──────────────────────────────────────────────────────────────
 function toggleSleepTimer() {
   if (sleepInterval) {
-    clearInterval(sleepInterval)
-    sleepInterval = null
-    sleepMinutes = 0
+    clearInterval(sleepInterval); sleepInterval = null
     document.getElementById('sleep-timer').classList.remove('active')
     showToast('Sleep timer cancelled')
     return
   }
   var mins = prompt('Sleep timer (minutes):', '30')
   if (!mins || isNaN(mins) || mins < 1) return
-  sleepMinutes = parseInt(mins)
-  var remaining = sleepMinutes * 60
+  var remaining = parseInt(mins) * 60
   document.getElementById('sleep-timer').classList.add('active')
-  updateSleepDisplay(remaining)
+  var el = document.getElementById('sleep-countdown')
   sleepInterval = setInterval(function() {
     remaining--
-    updateSleepDisplay(remaining)
+    var m = Math.floor(remaining / 60), s = remaining % 60
+    el.textContent = m + ':' + (s < 10 ? '0' : '') + s
     if (remaining <= 0) {
-      clearInterval(sleepInterval)
-      sleepInterval = null
+      clearInterval(sleepInterval); sleepInterval = null
       document.getElementById('sleep-timer').classList.remove('active')
-      webview.executeJavaScript("document.querySelector('video')?.pause()")
+      var wv = wrap.querySelector('webview')
+      if (wv) wv.executeJavaScript("document.querySelector('video')?.pause()")
       showToast('Sleep timer: paused')
     }
   }, 1000)
-  showToast('Sleep timer: ' + sleepMinutes + ' min')
+  showToast('Sleep timer: ' + mins + ' min')
 }
 
-function updateSleepDisplay(s) {
-  var m = Math.floor(s / 60)
-  var sec = s % 60
-  document.getElementById('sleep-countdown').textContent = m + ':' + (sec < 10 ? '0' : '') + sec
-}
+document.getElementById('pip-btn').addEventListener('click', togglePip)
+document.getElementById('sleep-btn').addEventListener('click', toggleSleepTimer)
+document.getElementById('tray-btn').addEventListener('click', function() { window.api.minimizeToTray() })
 
 document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') { e.preventDefault(); togglePip() }
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') { e.preventDefault(); toggleSleepTimer() }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Q') { e.preventDefault(); window.api.quitApp() }
-  if ((e.ctrlKey || e.metaKey) && e.key === '1') { e.preventDefault(); tabs[0].click() }
-  if ((e.ctrlKey || e.metaKey) && e.key === '2') { e.preventDefault(); tabs[1].click() }
+  if ((e.ctrlKey || e.metaKey) && e.key === '1') { e.preventDefault(); switchTab(0) }
+  if ((e.ctrlKey || e.metaKey) && e.key === '2') { e.preventDefault(); switchTab(1) }
 })
 
-webview.addEventListener('ipc-message', function(e) {
-  if (e.channel === 'pip-video') {
-    pipVideoUrl = e.args[0]
-  }
-})
-
-webview.addEventListener('new-window', function(e) {
-  if (e.url.startsWith('https://')) {
-    webview.src = e.url
-  }
-})
+// ── init ─────────────────────────────────────────────────────────────────────
+createWebview(tabs[0].dataset.url)
 </script>
 </body>
 </html>
