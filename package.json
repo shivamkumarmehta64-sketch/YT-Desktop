@@ -25,6 +25,6 @@
       "artifactName": "YT-Desktop-${version}-portable.${ext}"
     },
     "linux": { "target": ["AppImage"], "category": "AudioVideo" },
-    "extraResources": [{ "from": "ublock/uBlock0.chromium", "to": "ublock" }]
+    "extraResources": []
   }
 }

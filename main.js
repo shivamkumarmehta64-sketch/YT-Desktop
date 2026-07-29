@@ -1,10 +1,4 @@
 const { app, BrowserWindow, session, globalShortcut, Tray, Menu, nativeImage, ipcMain } = require('electron');
-const path = require('path');
-const fs = require('fs');
-
-const ublockPath = fs.existsSync(path.join(__dirname, 'ublock', 'uBlock0.chromium'))
-  ? path.join(__dirname, 'ublock', 'uBlock0.chromium')
-  : path.join(process.resourcesPath, 'ublock', 'uBlock0.chromium');
 
 const adDomains = [
   'doubleclick.net','googlesyndication.com','googleadservices.com',
@@ -61,8 +55,6 @@ function execMedia(action) {
 app.whenReady().then(async () => {
   var filter = { urls: adDomains.map(function(d) { return '*://*.' + d + '/*' }) };
   session.defaultSession.webRequest.onBeforeRequest(filter, function(d, c) { c({ cancel: true }) });
-  try { await session.defaultSession.loadExtension(ublockPath); } catch (e) {}
-
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
     autoHideMenuBar: true,
