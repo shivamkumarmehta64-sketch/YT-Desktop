@@ -235,8 +235,7 @@ function handleAdElements() {
 var adObserver = new MutationObserver(function() { handleAdElements() })
 adObserver.observe(document.body, { childList: true, subtree: true })
 
-// Also run periodically but at a low interval (every 3s instead of 500ms)
-setInterval(function() { handleAdElements() }, 3000)
+setInterval(function() { handleAdElements() }, 5000)
 
 // ── CSS hide ad elements (comprehensive) ──────────────────────────────────────
 var style = document.createElement('style')
@@ -285,7 +284,7 @@ style.textContent += '\n[data-is-ad=true],[is-ad=true],[data-ad-id],[data-ad-slo
 document.documentElement.appendChild(style)
 
 // ── initial video check ──────────────────────────────────────────────────────
-setTimeout(checkForNewVideo, 2000)
+setTimeout(checkForNewVideo, 500)
 
 // ── cleanup on unload ────────────────────────────────────────────────────────
 window.addEventListener('beforeunload', function() {

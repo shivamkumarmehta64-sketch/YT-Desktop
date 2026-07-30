@@ -287,8 +287,7 @@ app.whenReady().then(async () => {
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
     frame: false,
     autoHideMenuBar: true,
-    show: false,
-    titleBarStyle: 'hidden',
+    show: true,
     backgroundColor: '#08080e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -300,35 +299,15 @@ app.whenReady().then(async () => {
   })
 
   mainWindow.loadFile('browser.html')
-  mainWindow.once('ready-to-show', function() { mainWindow.show() })
 
   mainWindow.on('close', function(e) {
     if (!app.isQuitting) { e.preventDefault(); mainWindow.hide(); mainWindow.webContents.executeJavaScript("showToast('Minimized to tray. Right-click tray icon to Quit.')") }
   })
 
   app.setAppUserModelId('com.ytdesktop.app')
-  var fs2 = require('fs')
-  var trayIconPath = ''
-  var trayCandidates = [
-    path.join(__dirname, 'build', 'tray.ico'),
-    path.join(__dirname, 'build', 'tray.png'),
-    path.join(__dirname, 'build', 'icon.ico'),
-    path.join(__dirname, 'build', 'icon.png')
-  ]
-  for (var ti = 0; ti < trayCandidates.length; ti++) {
-    if (fs2.existsSync(trayCandidates[ti])) { trayIconPath = trayCandidates[ti]; break }
-  }
-  var trayIcon = nativeImage.createFromPath(trayIconPath)
-  if (trayIcon.isEmpty() || !trayIconPath) {
-    var s = 32, b = Buffer.alloc(s * s * 4, 0)
-    for (var y = 0; y < s; y++) {
-      for (var x = 0; x < s; x++) {
-        var i = (y * s + x) * 4, cx = x - s/2, cy = y - s/2, d = Math.sqrt(cx*cx + cy*cy)
-        if (d < 12) { b[i]=255; b[i+1]=255; b[i+2]=255; b[i+3]=255 }
-      }
-    }
-    trayIcon = nativeImage.createFromBuffer(b, { width: s, height: s })
-  }
+  var trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'tray.png'))
+  if (trayIcon.isEmpty()) trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'))
+  if (trayIcon.isEmpty()) trayIcon = nativeImage.createEmpty()
   tray = new Tray(trayIcon)
   tray.setToolTip('YT Desktop')
   tray.setContextMenu(Menu.buildFromTemplate([
