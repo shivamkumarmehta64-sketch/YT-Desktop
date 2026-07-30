@@ -3,8 +3,9 @@
 *.exe.config
 *.pdb
 
-# WebView2 managed DLLs (download via NuGet, not committed)
+# WebView2 DLLs (download via NuGet, not committed)
 lib/
+WebView2Loader.dll
 Microsoft.Web.WebView2.Core.dll
 Microsoft.Web.WebView2.WinForms.dll
 

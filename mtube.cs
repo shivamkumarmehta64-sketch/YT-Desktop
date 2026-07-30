@@ -23,7 +23,6 @@ namespace Mtube
     {
         private WebView2 webView;
         private NotifyIcon trayIcon;
-        private ContextMenuStrip trayMenu;
         private bool quitting = false;
         private string[] blockedDomains = {
             "doubleclick.net", "googlesyndication.com", "googleadservices.com",
@@ -37,7 +36,7 @@ namespace Mtube
             "openx.net", "rubiconproject.com", "appnexus.com",
             "casalemedia.com", "contextweb.com", "onetag.com",
             "ads.linkedin.com", "ads.facebook.com", "ads.yahoo.com",
-            "analytics.yahoo.com", "ads.youtube.com", "xiti.com",
+            "analytics.yahoo.com", "xiti.com",
             "at.atwola.com", "adserver.adtechus.com", "adserver.adtech.de",
             "ad.doubleclick.net", "adclick.g.doubleclick.net",
             "2mdn.net", "googleads.com"
@@ -116,35 +115,49 @@ namespace Mtube
             this.Size = new Size(1200, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             var appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var icoPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(appPath), "icon.ico");
+            var appDir = System.IO.Path.GetDirectoryName(appPath);
+            var icoPath = System.IO.Path.Combine(appDir, "icon.ico");
             if (System.IO.File.Exists(icoPath))
                 this.Icon = new Icon(icoPath);
-            this.BackColor = Color.FromArgb(32, 33, 36);
+            this.BackColor = Color.FromArgb(18, 18, 24);
             this.MinimumSize = new Size(400, 300);
 
             webView = new WebView2();
             webView.Dock = DockStyle.Fill;
-            webView.BackColor = Color.FromArgb(32, 33, 36);
-
-            var props = new CoreWebView2CreationProperties();
-            props.AdditionalBrowserArguments = "--disable-features=msWebOOUI,msPdfOOUI";
-            webView.CreationProperties = props;
+            webView.BackColor = Color.White;
+            var userData = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "mtube"
+            );
+            webView.CreationProperties = new CoreWebView2CreationProperties
+            {
+                Language = "en",
+                UserDataFolder = userData
+            };
+            webView.Source = new Uri("https://music.youtube.com");
 
             webView.CoreWebView2InitializationCompleted += OnWebViewReady;
+            webView.NavigationStarting += (s, args) =>
+            {
+                this.Text = "Loading: " + args.Uri;
+            };
+            webView.NavigationCompleted += (s, args) =>
+            {
+                this.Text = args.IsSuccess ? "mtube — YouTube Music" : "mtube — Load failed";
+            };
             this.Controls.Add(webView);
-
-            trayMenu = new ContextMenuStrip();
-            trayMenu.Items.Add("Show", null, (s, e) => ShowWindow());
-            trayMenu.Items.Add("Quit", null, (s, e) => QuitApp());
 
             trayIcon = new NotifyIcon();
             trayIcon.Text = "mtube — YouTube Music";
+            var trayMenu = new ContextMenuStrip();
+            trayMenu.Items.Add("Show", null, (s2, e2) => ShowWindow());
+            trayMenu.Items.Add("Quit", null, (s2, e2) => QuitApp());
+            trayIcon.ContextMenuStrip = trayMenu;
             if (System.IO.File.Exists(icoPath))
                 trayIcon.Icon = new Icon(icoPath);
-            trayIcon.ContextMenuStrip = trayMenu;
-            trayIcon.Click += (s, e) => ShowWindow();
+            trayIcon.Click += (s2, e2) => ShowWindow();
 
-            this.Resize += (s, e) =>
+            this.Resize += (s2, e2) =>
             {
                 if (this.WindowState == FormWindowState.Minimized)
                 {
@@ -153,11 +166,11 @@ namespace Mtube
                 }
             };
 
-            this.FormClosing += (s, e) =>
+            this.FormClosing += (s2, e2) =>
             {
                 if (!quitting)
                 {
-                    e.Cancel = true;
+                    e2.Cancel = true;
                     this.WindowState = FormWindowState.Minimized;
                     this.Hide();
                     trayIcon.Visible = true;
@@ -165,19 +178,26 @@ namespace Mtube
             };
         }
 
-        private async void OnWebViewReady(object sender, EventArgs e)
+        private async void OnWebViewReady(object sender, CoreWebView2InitializationCompletedEventArgs e)
         {
+            if (!e.IsSuccess)
+            {
+                var exMsg = "Unknown error";
+                if (e.InitializationException != null)
+                    exMsg = e.InitializationException.Message;
+                ShowError("WebView2 init failed:\n" + exMsg);
+                return;
+            }
+
             if (webView.CoreWebView2 == null)
             {
-                SetupError("WebView2 runtime is not available.\nPlease install the WebView2 Runtime from:\nhttps://go.microsoft.com/fwlink/p/?LinkId=2124703");
+                ShowError("WebView2 core is null after init.");
                 return;
             }
 
             webView.CoreWebView2.Settings.IsScriptEnabled = true;
             webView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
-            webView.CoreWebView2.Settings.IsWebMessageEnabled = false;
             webView.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
-            webView.CoreWebView2.Settings.IsGeneralAutofillEnabled = false;
 
             webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
             webView.CoreWebView2.WebResourceRequested += (s, args) =>
@@ -195,12 +215,14 @@ namespace Mtube
                 catch { }
             };
 
-            await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(adBlockerScript);
-
-            webView.CoreWebView2.Navigate("https://music.youtube.com");
+            try
+            {
+                await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(adBlockerScript);
+            }
+            catch { }
         }
 
-        private void SetupError(string message)
+        private void ShowError(string message)
         {
             var label = new Label();
             label.Text = message;
