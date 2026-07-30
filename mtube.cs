@@ -115,7 +115,10 @@ namespace Mtube
             this.Text = "mtube";
             this.Size = new Size(1200, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Icon = SystemIcons.Application;
+            var appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var icoPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(appPath), "icon.ico");
+            if (System.IO.File.Exists(icoPath))
+                this.Icon = new Icon(icoPath);
             this.BackColor = Color.FromArgb(32, 33, 36);
             this.MinimumSize = new Size(400, 300);
 
@@ -136,7 +139,8 @@ namespace Mtube
 
             trayIcon = new NotifyIcon();
             trayIcon.Text = "mtube — YouTube Music";
-            trayIcon.Icon = SystemIcons.Application;
+            if (System.IO.File.Exists(icoPath))
+                trayIcon.Icon = new Icon(icoPath);
             trayIcon.ContextMenuStrip = trayMenu;
             trayIcon.Click += (s, e) => ShowWindow();
 
