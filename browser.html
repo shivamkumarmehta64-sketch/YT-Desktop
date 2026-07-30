@@ -4,43 +4,91 @@
 <meta charset="utf-8">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#0f0f0f;color:#fff;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
-#tabs{display:flex;align-items:center;background:#1a1a1a;border-bottom:1px solid #2a2a2a;flex-shrink:0;padding:0 8px;height:40px}
-.tab{display:flex;align-items:center;gap:8px;padding:0 16px;height:40px;cursor:pointer;color:#888;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s ease}
-.tab:hover{color:#fff;background:rgba(255,255,255,0.04)}
-.tab.active{color:#fff;border-bottom-color:#ff0033}
-.tab svg{width:18px;height:18px}
+body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#08080e;color:#fff;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+
+/* ── titlebar ── */
+#titlebar{display:flex;align-items:center;height:36px;background:#0d0d18;border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;padding:0;position:relative;z-index:10}
+#titlebar-drag{-webkit-app-region:drag;flex:1;height:100%;display:flex;align-items:center;padding:0 14px;gap:8px}
+#titlebar-drag span{font-size:12px;color:rgba(255,255,255,0.35);font-weight:500;letter-spacing:0.3px}
+#titlebar-controls{display:flex;height:100%;-webkit-app-region:no-drag}
+#titlebar-controls button{background:transparent;border:none;color:rgba(255,255,255,0.5);width:44px;height:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .12s ease;font-family:system-ui}
+#titlebar-controls button:hover{background:rgba(255,255,255,0.08);color:#fff}
+#titlebar-controls #close-btn:hover{background:#e81123;color:#fff}
+
+/* ── tabs bar ── */
+#tabs{display:flex;align-items:center;background:rgba(13,13,24,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;padding:0 8px;height:42px;position:relative;z-index:5}
+.tab{display:flex;align-items:center;gap:7px;padding:0 16px;height:42px;cursor:pointer;color:rgba(255,255,255,0.4);font-size:12.5px;font-weight:500;position:relative;transition:all .25s cubic-bezier(0.4,0,0.2,1)}
+.tab:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.03)}
+.tab.active{color:#fff}
+.tab .tab-indicator{position:absolute;bottom:0;left:50%;width:0;height:2px;background:linear-gradient(90deg,#ff0040,#ff6600,#ffdd00,#00ff88,#00aaff,#8822ff);border-radius:2px;transition:all .35s cubic-bezier(0.4,0,0.2,1);transform:translateX(-50%)}
+.tab.active .tab-indicator{width:60%}
+.tab svg{width:17px;height:17px;opacity:0.7;transition:opacity .2s}
+.tab.active svg{opacity:1}
 #spacer{flex:1}
-#features{display:flex;align-items:center;gap:2px;height:40px}
-#features button{background:transparent;border:none;color:#888;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;transition:all .12s ease;display:flex;align-items:center;justify-content:center}
-#features button:hover{background:rgba(255,255,255,0.08);color:#fff}
-#features button.active-btn{color:#ff0033}
-#player-wrap{flex:1;display:flex}
-#pip-window{display:none;position:fixed;bottom:80px;right:20px;width:320px;height:200px;border-radius:12px;overflow:hidden;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid #2a2a2a;background:#000}
-#pip-window.active{display:block}
-#sleep-timer{display:none;position:fixed;bottom:20px;right:20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:12px 16px;z-index:9998;font-size:12px;color:#ccc;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
-#sleep-timer.active{display:block}
-#sleep-timer span{color:#ff0033;font-weight:600}
-.toast{position:fixed;bottom:50%;left:50%;transform:translate(-50%,50%);background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 16px;font-size:13px;color:#fff;z-index:99999;opacity:0;transition:opacity .25s ease;pointer-events:none}
-.toast.show{opacity:1}
+
+/* ── feature buttons ── */
+#features{display:flex;align-items:center;gap:3px;height:42px;padding-right:4px}
+#features button{background:transparent;border:none;color:rgba(255,255,255,0.35);width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:13px;transition:all .18s ease;display:flex;align-items:center;justify-content:center;position:relative}
+#features button:hover{background:rgba(255,255,255,0.07);color:#fff;transform:scale(1.05)}
+#features button:active{transform:scale(0.95)}
+#features button.active-btn{color:#ff0040}
+#features button .tooltip{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%) scale(0.9);background:#1a1a2e;border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,0.8);white-space:nowrap;opacity:0;pointer-events:none;transition:all .18s cubic-bezier(0.4,0,0.2,1);backdrop-filter:blur(8px)}
+#features button:hover .tooltip{opacity:1;transform:translateX(-50%) scale(1)}
+
+/* ── webview ── */
+#player-wrap{flex:1;display:flex;position:relative}
+#player-wrap webview{flex:1;opacity:0;transition:opacity .35s ease}
+#player-wrap webview.loaded{opacity:1}
+
+/* ── pip ── */
+#pip-window{display:none;position:fixed;bottom:80px;right:20px;width:360px;height:220px;border-radius:14px;overflow:hidden;z-index:9999;box-shadow:0 12px 48px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.06);background:#000;transform:scale(0.9) translateY(10px);opacity:0;transition:all .3s cubic-bezier(0.4,0,0.2,1)}
+#pip-window.active{display:block;transform:scale(1) translateY(0);opacity:1}
+#pip-window webview{width:100%;height:100%}
+
+/* ── sleep timer ── */
+#sleep-timer{display:none;position:fixed;bottom:20px;right:20px;background:rgba(15,15,30,0.9);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 14px;z-index:9998;font-size:12px;color:rgba(255,255,255,0.6);box-shadow:0 4px 20px rgba(0,0,0,0.4);transform:translateY(10px);opacity:0;transition:all .3s cubic-bezier(0.4,0,0.2,1)}
+#sleep-timer.active{display:block;transform:translateY(0);opacity:1}
+#sleep-timer span{color:#ff0040;font-weight:600}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:50%;left:50%;transform:translate(-50%,50%) scale(0.95);background:rgba(15,15,30,0.88);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 20px;font-size:13px;color:#fff;z-index:99999;opacity:0;pointer-events:none;transition:all .25s cubic-bezier(0.4,0,0.2,1);box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.toast.show{opacity:1;transform:translate(-50%,50%) scale(1)}
 </style>
 </head>
 <body>
+<div id="titlebar">
+  <div id="titlebar-drag"><span>YT Desktop</span></div>
+  <div id="titlebar-controls">
+    <button id="min-btn" title="Minimize">━</button>
+    <button id="max-btn" title="Maximize">☐</button>
+    <button id="close-btn" title="Close">✕</button>
+  </div>
+</div>
 <div id="tabs">
   <div class="tab active" data-url="https://youtube.com">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2c-.3-1.1-1.1-1.9-2.2-2.2C19.4 3.5 12 3.5 12 3.5s-7.4 0-9.3.5C1.6 4.3.8 5.1.5 6.2 0 8.2 0 12 0 12s0 3.8.5 5.8c.3 1.1 1.1 1.9 2.2 2.2 1.9.5 9.3.5 9.3.5s7.4 0 9.3-.5c1.1-.3 1.9-1.1 2.2-2.2.5-2 .5-5.8.5-5.8s0-3.8-.5-5.8zM9.5 15.5V8.5l6.2 3.5-6.2 3.5z"/></svg>
     YouTube
+    <div class="tab-indicator"></div>
   </div>
   <div class="tab" data-url="https://music.youtube.com">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
     YouTube Music
+    <div class="tab-indicator"></div>
   </div>
   <div id="spacer"></div>
   <div id="features">
-    <button id="pip-btn" title="PiP (Ctrl+Shift+P)">⊞</button>
-    <button id="sleep-btn" title="Sleep timer (Ctrl+Shift+S)">⏱</button>
-    <button id="tray-btn" title="Minimize to tray">_</button>
-    <button id="quit-btn" title="Quit (Ctrl+Q)">⏻</button>
+    <button id="pip-btn">
+      ⊞<span class="tooltip">PiP (Ctrl+Shift+P)</span>
+    </button>
+    <button id="sleep-btn">
+      ⏱<span class="tooltip">Sleep (Ctrl+Shift+S)</span>
+    </button>
+    <button id="tray-btn">
+      _<span class="tooltip">Minimize to tray</span>
+    </button>
+    <button id="quit-btn">
+      ⏻<span class="tooltip">Quit (Ctrl+Q)</span>
+    </button>
   </div>
 </div>
 <div id="player-wrap"></div>
@@ -65,8 +113,9 @@ function showToast(msg) {
 function createWebview(src) {
   var old = wrap.querySelector('webview')
   if (old) {
+    old.classList.remove('loaded')
     old.src = 'about:blank'
-    old.remove()
+    setTimeout(function() { old.remove() }, 100)
   }
   var wv = document.createElement('webview')
   wv.setAttribute('preload', './preload.js')
@@ -75,6 +124,9 @@ function createWebview(src) {
   wv.style.flex = '1'
   wv.src = src
   wrap.appendChild(wv)
+  wv.addEventListener('did-finish-load', function() {
+    setTimeout(function() { wv.classList.add('loaded') }, 50)
+  })
   wv.addEventListener('new-window', function(e) {
     if (e.url.startsWith('https://')) { wv.src = e.url }
   })
@@ -93,13 +145,24 @@ tabs.forEach(function(t, i) {
   t.addEventListener('click', function() { switchTab(i) })
 })
 
-// ── pip ──────────────────────────────────────────────────────────────────────
+// ── titlebar controls ──
+document.getElementById('min-btn').addEventListener('click', function() { window.api.minimizeWindow() })
+document.getElementById('max-btn').addEventListener('click', function() { window.api.maximizeWindow() })
+document.getElementById('close-btn').addEventListener('click', function() { window.api.closeWindow() })
+
+window.api.onWindowState(function(maximized) {
+  document.getElementById('max-btn').textContent = maximized ? '❐' : '☐'
+})
+
+// ── pip ──
 function togglePip() {
   if (pipWebview) {
-    pipWebview.src = 'about:blank'
-    pipWebview.remove()
-    pipWebview = null
     pipWindow.classList.remove('active')
+    setTimeout(function() {
+      pipWebview.src = 'about:blank'
+      pipWebview.remove()
+      pipWebview = null
+    }, 300)
     showToast('PiP closed')
     return
   }
@@ -111,6 +174,7 @@ function togglePip() {
       var w = document.createElement('webview')
       w.style.cssText = 'width:100%;height:100%'
       w.src = tabs[activeTab].dataset.url
+      pipWindow.innerHTML = ''
       pipWindow.appendChild(w)
       pipWindow.classList.add('active')
       pipWebview = w
@@ -118,7 +182,7 @@ function togglePip() {
     })
 }
 
-// ── sleep timer ──────────────────────────────────────────────────────────────
+// ── sleep timer ──
 function toggleSleepTimer() {
   if (sleepInterval) {
     clearInterval(sleepInterval); sleepInterval = null
@@ -157,9 +221,10 @@ document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Q') { e.preventDefault(); window.api.quitApp() }
   if ((e.ctrlKey || e.metaKey) && e.key === '1') { e.preventDefault(); switchTab(0) }
   if ((e.ctrlKey || e.metaKey) && e.key === '2') { e.preventDefault(); switchTab(1) }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'M') { e.preventDefault(); window.api.minimizeWindow() }
 })
 
-// ── init ─────────────────────────────────────────────────────────────────────
+// ── init ──
 createWebview(tabs[0].dataset.url)
 </script>
 </body>

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, globalShortcut, Tray, Menu, nativeImage, ipcMain, net } = require('electron');
+const { app, BrowserWindow, session, globalShortcut, Tray, Menu, nativeImage, ipcMain } = require('electron');
 const path = require('path');
 
 const adDomains = [
@@ -285,13 +285,17 @@ app.whenReady().then(async () => {
 
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
+    frame: false,
     autoHideMenuBar: true,
     show: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#08080e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true,
       contextIsolation: false,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: true
     }
   })
 
@@ -325,5 +329,13 @@ app.whenReady().then(async () => {
 
 ipcMain.handle('minimize-to-tray', function() { mainWindow.hide() })
 ipcMain.handle('quit-app', function() { app.isQuitting = true; app.quit() })
+ipcMain.handle('window-minimize', function() { mainWindow.minimize() })
+ipcMain.handle('window-maximize', function() { if (mainWindow.isMaximized()) { mainWindow.unmaximize() } else { mainWindow.maximize() } })
+ipcMain.handle('window-close', function() { mainWindow.close() })
+ipcMain.handle('window-is-maximized', function() { return mainWindow.isMaximized() })
+
+mainWindow.on('maximize', function() { mainWindow.webContents.send('window-state-changed', true) })
+mainWindow.on('unmaximize', function() { mainWindow.webContents.send('window-state-changed', false) })
+
 app.on('will-quit', function() { globalShortcut.unregisterAll() })
 app.on('window-all-closed', function() { if (process.platform !== 'darwin') app.quit() })

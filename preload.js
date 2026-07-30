@@ -2,7 +2,11 @@ const { ipcRenderer } = require('electron')
 
 window.api = {
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
-  quitApp: () => ipcRenderer.invoke('quit-app')
+  quitApp: () => ipcRenderer.invoke('quit-app'),
+  minimizeWindow: () => ipcRenderer.invoke('window-minimize'),
+  maximizeWindow: () => ipcRenderer.invoke('window-maximize'),
+  closeWindow: () => ipcRenderer.invoke('window-close'),
+  onWindowState: (cb) => { ipcRenderer.on('window-state-changed', (e, v) => cb(v)) }
 }
 
 // ── SponsorBlock: skip sponsored segments ────────────────────────────────────
