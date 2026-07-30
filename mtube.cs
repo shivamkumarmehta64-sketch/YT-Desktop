@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Web.WebView2.Core;
@@ -23,23 +21,12 @@ namespace Mtube
     {
         private WebView2 webView;
         private NotifyIcon trayIcon;
+        private Label loadingLabel;
         private bool quitting = false;
+
         private string[] blockedDomains = {
-            "doubleclick.net", "googlesyndication.com", "googleadservices.com",
-            "googletagservices.com", "googletagmanager.com", "google-analytics.com",
-            "g.doubleclick.net", "taboola.com", "outbrain.com",
-            "scorecardresearch.com", "criteo.com", "criteo.net",
-            "amazon-adsystem.com", "adnxs.com", "adsrvr.org",
-            "adservice.google.com", "adserver.yahoo.com", "advertising.com",
-            "adzerk.net", "adsafeprotected.com", "moatads.com",
-            "sharethrough.com", "indexww.com", "pubmatic.com",
-            "openx.net", "rubiconproject.com", "appnexus.com",
-            "casalemedia.com", "contextweb.com", "onetag.com",
-            "ads.linkedin.com", "ads.facebook.com", "ads.yahoo.com",
-            "analytics.yahoo.com", "xiti.com",
-            "at.atwola.com", "adserver.adtechus.com", "adserver.adtech.de",
-            "ad.doubleclick.net", "adclick.g.doubleclick.net",
-            "2mdn.net", "googleads.com"
+            "doubleclick.net",
+            "googlesyndication.com"
         };
 
         private string adBlockerScript = @"
@@ -52,52 +39,30 @@ namespace Mtube
         ytmusic-promotion-message-renderer,
         ytd-ad-slot-renderer,
         .ytp-ad-module,
-        .ytp-ad-player-overlay,
-        .ytp-ad-overlay-container,
-        .ytp-ad-image-overlay { display: none !important; }
+        .ytp-ad-player-overlay { display: none !important; }
     `;
     document.head.appendChild(style);
     const pruneAdData = function(obj) {
         if (!obj || typeof obj !== 'object') return obj;
         try {
-            const s = JSON.stringify(obj);
-            if (s.includes('adPlacements') || s.includes('playerAds') || s.includes('adSlots')) {
-                delete obj.adPlacements;
-                delete obj.playerAds;
-                delete obj.adSlots;
-                delete obj.adBreak;
-                delete obj.adIsPlaying;
-                delete obj.adPlaybackUrl;
-                delete obj.adVideoId;
-            }
+            if (obj.adPlacements) delete obj.adPlacements;
+            if (obj.playerAds) delete obj.playerAds;
+            if (obj.adSlots) delete obj.adSlots;
         } catch(e) {}
         return obj;
     };
-    const origParse = JSON.parse;
+    var origParse = JSON.parse;
     JSON.parse = function() {
         return pruneAdData(origParse.apply(this, arguments));
     };
-    const origFetch = window.fetch;
-    window.fetch = function() {
-        return origFetch.apply(this, arguments).then(function(r) {
-            const clone = r.clone();
-            if (clone.headers.get('content-type')?.includes('json')) {
-                return clone.json().then(function(data) {
-                    pruneAdData(data);
-                    return new Response(JSON.stringify(data), { status: r.status, headers: r.headers });
-                }).catch(function(){ return r; });
-            }
-            return r;
-        });
-    };
-    const checkAds = function() {
-        const video = document.querySelector('video');
+    var checkAds = function() {
+        var video = document.querySelector('video');
         if (video) {
-            const ad = document.querySelector('.ad-showing') || document.querySelector('.ytp-ad-player-overlay');
+            var ad = document.querySelector('.ad-showing') || document.querySelector('.ytp-ad-player-overlay');
             if (ad) {
                 video.muted = true;
                 video.playbackRate = 16.0;
-                const skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
+                var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
                 if (skip) skip.click();
             } else if (video.playbackRate > 1) {
                 video.muted = false;
@@ -114,17 +79,28 @@ namespace Mtube
             this.Text = "mtube";
             this.Size = new Size(1200, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(18, 18, 24);
+            this.MinimumSize = new Size(400, 300);
+
             var appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             var appDir = System.IO.Path.GetDirectoryName(appPath);
             var icoPath = System.IO.Path.Combine(appDir, "icon.ico");
             if (System.IO.File.Exists(icoPath))
                 this.Icon = new Icon(icoPath);
-            this.BackColor = Color.FromArgb(18, 18, 24);
-            this.MinimumSize = new Size(400, 300);
+
+            loadingLabel = new Label();
+            loadingLabel.Text = "mtube\nLoading...";
+            loadingLabel.ForeColor = Color.FromArgb(180, 180, 180);
+            loadingLabel.BackColor = Color.FromArgb(18, 18, 24);
+            loadingLabel.Dock = DockStyle.Fill;
+            loadingLabel.TextAlign = ContentAlignment.MiddleCenter;
+            loadingLabel.Font = new Font("Segoe UI", 20, FontStyle.Regular);
+            loadingLabel.AutoSize = false;
+            this.Controls.Add(loadingLabel);
 
             webView = new WebView2();
             webView.Dock = DockStyle.Fill;
-            webView.BackColor = Color.White;
+            webView.Visible = false;
             var userData = System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "mtube"
@@ -134,17 +110,8 @@ namespace Mtube
                 Language = "en",
                 UserDataFolder = userData
             };
-            webView.Source = new Uri("https://music.youtube.com");
-
             webView.CoreWebView2InitializationCompleted += OnWebViewReady;
-            webView.NavigationStarting += (s, args) =>
-            {
-                this.Text = "Loading: " + args.Uri;
-            };
-            webView.NavigationCompleted += (s, args) =>
-            {
-                this.Text = args.IsSuccess ? "mtube — YouTube Music" : "mtube — Load failed";
-            };
+            webView.NavigationCompleted += OnNavigationCompleted;
             this.Controls.Add(webView);
 
             trayIcon = new NotifyIcon();
@@ -185,15 +152,17 @@ namespace Mtube
                 var exMsg = "Unknown error";
                 if (e.InitializationException != null)
                     exMsg = e.InitializationException.Message;
-                ShowError("WebView2 init failed:\n" + exMsg);
+                ShowError("WebView2 failed:\n" + exMsg);
                 return;
             }
 
             if (webView.CoreWebView2 == null)
             {
-                ShowError("WebView2 core is null after init.");
+                ShowError("WebView2 core is null");
                 return;
             }
+
+            loadingLabel.Text = "mtube\nInitializing...";
 
             webView.CoreWebView2.Settings.IsScriptEnabled = true;
             webView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
@@ -205,11 +174,15 @@ namespace Mtube
                 try
                 {
                     var uri = args.Request.Uri.ToLower();
-                    if (blockedDomains.Any(d => uri.Contains(d)))
+                    foreach (var domain in blockedDomains)
                     {
-                        args.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                            null, 403, "Blocked", null
-                        );
+                        if (uri.Contains(domain))
+                        {
+                            args.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
+                                null, 403, "Blocked", null
+                            );
+                            break;
+                        }
                     }
                 }
                 catch { }
@@ -220,19 +193,36 @@ namespace Mtube
                 await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(adBlockerScript);
             }
             catch { }
+
+            loadingLabel.Text = "mtube\nLoading YouTube Music...";
+            webView.Visible = true;
+            webView.CoreWebView2.Navigate("https://music.youtube.com");
+        }
+
+        private void OnNavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+        {
+            if (e.IsSuccess)
+            {
+                loadingLabel.Visible = false;
+                this.Text = "mtube — YouTube Music";
+            }
+            else
+            {
+                loadingLabel.Text = "mtube\nConnection issue.\nClick to retry.";
+                loadingLabel.Click += (s, args) =>
+                {
+                    loadingLabel.Text = "mtube\nRetrying...";
+                    loadingLabel.Click -= null;
+                    if (webView.CoreWebView2 != null)
+                        webView.CoreWebView2.Navigate("https://music.youtube.com");
+                };
+            }
         }
 
         private void ShowError(string message)
         {
-            var label = new Label();
-            label.Text = message;
-            label.TextAlign = ContentAlignment.MiddleCenter;
-            label.ForeColor = Color.White;
-            label.BackColor = Color.FromArgb(32, 33, 36);
-            label.Dock = DockStyle.Fill;
-            label.Font = new Font("Segoe UI", 12);
-            this.Controls.Clear();
-            this.Controls.Add(label);
+            loadingLabel.Text = message;
+            loadingLabel.Font = new Font("Segoe UI", 12);
         }
 
         private void ShowWindow()
