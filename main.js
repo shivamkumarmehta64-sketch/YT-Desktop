@@ -307,20 +307,39 @@ app.whenReady().then(async () => {
   })
 
   app.setAppUserModelId('com.ytdesktop.app')
-  var trayIconPath = path.join(__dirname, 'build', 'tray.png')
-  if (!require('fs').existsSync(trayIconPath)) trayIconPath = path.join(__dirname, 'build', 'icon.png')
+  var fs2 = require('fs')
+  var trayIconPath = ''
+  var trayCandidates = [
+    path.join(__dirname, 'build', 'tray.ico'),
+    path.join(__dirname, 'build', 'tray.png'),
+    path.join(__dirname, 'build', 'icon.ico'),
+    path.join(__dirname, 'build', 'icon.png')
+  ]
+  for (var ti = 0; ti < trayCandidates.length; ti++) {
+    if (fs2.existsSync(trayCandidates[ti])) { trayIconPath = trayCandidates[ti]; break }
+  }
   var trayIcon = nativeImage.createFromPath(trayIconPath)
+  if (trayIcon.isEmpty() || !trayIconPath) {
+    var s = 32, b = Buffer.alloc(s * s * 4, 0)
+    for (var y = 0; y < s; y++) {
+      for (var x = 0; x < s; x++) {
+        var i = (y * s + x) * 4, cx = x - s/2, cy = y - s/2, d = Math.sqrt(cx*cx + cy*cy)
+        if (d < 12) { b[i]=255; b[i+1]=255; b[i+2]=255; b[i+3]=255 }
+      }
+    }
+    trayIcon = nativeImage.createFromBuffer(b, { width: s, height: s })
+  }
   tray = new Tray(trayIcon)
   tray.setToolTip('YT Desktop')
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Show', click: function() { mainWindow.show() } },
+    { label: 'Show', click: function() { mainWindow.show(); mainWindow.focus() } },
     { label: 'Play/Pause', click: function() { debouncedMedia('toggle') } },
     { label: 'Next', click: function() { debouncedMedia('next') } },
     { label: 'Previous', click: function() { debouncedMedia('prev') } },
     { type: 'separator' },
     { label: 'Quit', click: function() { app.isQuitting = true; app.quit() } }
   ]))
-  tray.on('click', function() { mainWindow.show() })
+  tray.on('click', function() { mainWindow.show(); mainWindow.focus() })
 
   globalShortcut.register('MediaPlayPause', function() { debouncedMedia('toggle') })
   globalShortcut.register('MediaNextTrack', function() { debouncedMedia('next') })
