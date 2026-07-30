@@ -1,0 +1,15 @@
+# Build output (exe is compiled from source)
+*.exe
+*.exe.config
+*.pdb
+
+# WebView2 managed DLLs (download via NuGet, not committed)
+lib/
+Microsoft.Web.WebView2.Core.dll
+Microsoft.Web.WebView2.WinForms.dll
+
+# Windows generated
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
