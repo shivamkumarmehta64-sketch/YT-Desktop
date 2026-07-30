@@ -1,4 +1,7 @@
-const { ipcRenderer } = require('electron')
+var ipcRenderer
+try { ipcRenderer = require('electron').ipcRenderer } catch(e) {}
+
+if (ipcRenderer) {
 
 window.api = {
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
@@ -22,6 +25,8 @@ ipcRenderer.on('media-action', function(event, action) {
   }
   if (js) wv.executeJavaScript(js)
 })
+
+}
 
 // ── SponsorBlock: skip sponsored segments ────────────────────────────────────
 var sponsorBlockCache = {}
@@ -115,7 +120,34 @@ var adKeys = [
   'carouselAdRenderer','carouselAdRendererViewModel',
   'carouselAdRendererViewModelGrid','carouselAdRendererViewModelList',
   'searchAdsRenderer','searchAdsRendererViewModel','adSlot',
-  'adSlotRenderer','adSlotRendererViewModel'
+  'adSlotRenderer','adSlotRendererViewModel',
+  // extra aggressive - catch any new ad renderers
+  'masthead','sparkles','promoted','promo','promotion',
+  'mealbar','legalBanner','enforcementMessage',
+  'bannerPromo','displayAd','actionCompanion',
+  'inFeedAd','feedAd','shelfAd','sectionListAd',
+  'puzzleAd','quizAd','expandableAd','engagementAd',
+  'fullWidthAd','gridAd','heroAd','landscapeAd',
+  'mosaicAd','portraitAd','reminderAd','squareAd',
+  'verticalAd','watchNextAd','watchNextAds',
+  'adInfoDialog','adPreview','adDisclaimer',
+  'adSignIn','adSurvey','adChoices',
+  'adSelector','adCreative','adMetadata',
+  'adPlacement','adPosition','adSection',
+  'adSequence','adTiming','adTracking',
+  'adVideo','adOverlayModule','adOverlayRenderer',
+  'brandInteraction','brandSurvey','brandVideo',
+  'ctaOverlay','ctaBanner','ctaButton',
+  'invideo','instream','outstream',
+  'preRoll','postRoll','midRoll',
+  'skippableAd','nonSkippableAd',
+  'adVariant','adVersion','adWarning','adZone',
+  'hotelAd','flightAd','productAd','shoppingAd',
+  'subscriptionAd','trialAd','upsellAd',
+  'ypcAd','ypcGetPremium','ypcPurchase',
+  'getPremium','premiumLabel','premiumDialog',
+  'musicPass','musicAd','musicBanner',
+  'reelAd','reelShelfAd','shortsAd'
 ]
 
 function deepWalk(obj, path, keys) {
@@ -150,56 +182,71 @@ function deepWalk(obj, path, keys) {
   return cleaned
 }
 
-var _jp = JSON.parse
-JSON.parse = new Proxy(_jp, {
-  apply: function(t, a, r) {
-    try {
-      var x = Reflect.apply(t, a, r)
-      if (x && typeof x === 'object') deepWalk(x, [], adKeys)
-      return x
-    } catch (e) { return Reflect.apply(t, a, r) }
-  }
-})
-
-var _fw = window.fetch
-window.fetch = function(u, o) {
-  var u2 = (typeof u === 'string' ? u : u && u.url) || ''
-  if (/\/youtubei\/v1\/(player|browse|search|next|guide|reel_watch_sequence|get_watch|navigation)/.test(u2)) {
-    return _fw.apply(this, arguments).then(function(r) {
+// ── API-level ad blocking (backup plan 2) ────────────────────────────────────
+try {
+  var _jp = JSON.parse
+  var _jpFastPath = /youtube|ytInitial|playerResponse|ytcfg|ytplayer|innertube|music\.youtube/i
+  JSON.parse = new Proxy(_jp, {
+    apply: function(t, a, r) {
+      var s = r && r.length ? String(r[0] || '') : ''
+      if (s.length < 100 || s.length > 500000 || !_jpFastPath.test(s)) return Reflect.apply(t, a, r)
       try {
-        return r.clone().text().then(function(t) {
-          try {
+        var x = Reflect.apply(t, a, r)
+        if (x && typeof x === 'object') deepWalk(x, [], adKeys)
+        return x
+      } catch (e) { return Reflect.apply(t, a, r) }
+    }
+  })
+} catch(e) {}
+
+try {
+  var _fw = window.fetch
+  window.fetch = function(u, o) {
+    var u2 = (typeof u === 'string' ? u : u && u.url) || ''
+    if (/\/youtubei\/v1\//.test(u2)) {
+      return _fw.apply(this, arguments).then(function(r) {
+        if (!r.ok || !/json/.test(r.headers.get('content-type') || '')) return r
+        var len = parseInt(r.headers.get('content-length') || '0')
+        if (len > 500000) return r
+        try {
+          return r.clone().text().then(function(t) {
             var j = _jp(t)
-            if (deepWalk(j, [], adKeys)) r = new Response(JSON.stringify(j), { status: r.status, statusText: r.statusText, headers: r.headers })
-          } catch (e) {}
-          return r
-        }).catch(function() { return r })
-      } catch (e) { return r }
-    })
+            if (deepWalk(j, [], adKeys)) return new Response(JSON.stringify(j), { status: r.status, statusText: r.statusText, headers: r.headers })
+            return r
+          })
+        } catch (e) { return r }
+      })
+    }
+    return _fw.apply(this, arguments)
   }
-  return _fw.apply(this, arguments)
-}
+} catch(e) {}
 
-var _xo = XMLHttpRequest.prototype.open
-XMLHttpRequest.prototype.open = function(m, u) { this._yu = u; return _xo.apply(this, arguments) }
-
-var _xs = XMLHttpRequest.prototype.send
-XMLHttpRequest.prototype.send = function() {
-  if (this._yu && /\/youtubei\/v1\//.test(this._yu)) {
-    var x = this, ol = x.onload
-    x.addEventListener('load', function() {
-      try {
-        var t = x.responseText
-        if (t) {
-          var j = _jp(t)
-          if (deepWalk(j, [], adKeys)) Object.defineProperty(x, 'responseText', { value: JSON.stringify(j), writable: false })
-        }
-      } catch (e) {}
-      if (ol) ol.call(x)
-    })
+try {
+  var _xo = XMLHttpRequest.prototype.open
+  XMLHttpRequest.prototype.open = function(m, u) { this._yu = u; return _xo.apply(this, arguments) }
+  var _xs = XMLHttpRequest.prototype.send
+  XMLHttpRequest.prototype.send = function() {
+    if (this._yu && /\/youtubei\/v1\//.test(this._yu)) {
+      var x = this, ol = x.onload
+      var handler = function() {
+        try {
+          var ct = x.getResponseHeader('content-type') || ''
+          if (!/json/.test(ct)) return
+          var t = x.responseText
+          if (t && t.length > 100 && t.length < 500000) {
+            var j = _jp(t)
+            if (deepWalk(j, [], adKeys)) Object.defineProperty(x, 'responseText', { value: JSON.stringify(j), writable: false })
+          }
+        } catch (e) {}
+        if (ol) ol.call(x)
+      }
+      if (x._ytAdHandler) { x.removeEventListener('load', x._ytAdHandler) }
+      x._ytAdHandler = handler
+      x.addEventListener('load', handler)
+    }
+    return _xs.apply(this, arguments)
   }
-  return _xs.apply(this, arguments)
-}
+} catch(e) {}
 
 try {
   if (window.ytInitialPlayerResponse) { deepWalk(window.ytInitialPlayerResponse, [], adKeys); deepWalk(window.ytInitialData, [], adKeys) }
@@ -224,78 +271,140 @@ document.addEventListener('timeupdate', function(e) {
   adSkipTimer = setTimeout(function() { adSkipTimer = null; skipAds(e.target) }, 200)
 }, true)
 
-// ── MutationObserver: ad skip buttons, overlays, banners ─────────────────────
+// ── aggressive ad removal ────────────────────────────────────────────────────
 function handleAdElements() {
   try {
-    document.querySelectorAll('.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-ad-skip-button-slot').forEach(function(s) { s.click() })
-    document.querySelectorAll('.ytp-ad-overlay-close-container,.ytp-ad-overlay-close-button,.ytp-ad-overlay-close').forEach(function(o) { o.click() })
-    document.querySelectorAll('ytd-popup-container tp-yt-paper-dialog:has(ytd-mealbar-promo-renderer), ytd-modal-with-title-and-button-renderer:has(ytd-mealbar-promo-renderer)').forEach(function(d) { d.remove() })
-    document.querySelectorAll('[aria-label="Dismiss"], [aria-label="Close"], [label="Dismiss"], [label="Close"]').forEach(function(b) {
+    // skip buttons
+    document.querySelectorAll('.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-ad-skip-button-slot,.ytp-ad-skip-button-container').forEach(function(s) { s.click() })
+    // overlay close
+    document.querySelectorAll('.ytp-ad-overlay-close-container,.ytp-ad-overlay-close-button,.ytp-ad-overlay-close,.ytp-ad-overlay-close-button').forEach(function(o) { o.click() })
+    // dialogs / popups
+    document.querySelectorAll('ytd-popup-container tp-yt-paper-dialog:has(ytd-mealbar-promo-renderer), ytd-modal-with-title-and-button-renderer:has(ytd-mealbar-promo-renderer), tp-yt-paper-dialog:has(ytd-ad-slot-renderer), ytd-popup-container:has(ytd-get-premium)').forEach(function(d) { d.remove() })
+    // dismiss buttons
+    document.querySelectorAll('[aria-label="Dismiss"], [aria-label="Close"], [label="Dismiss"], [label="Close"], [aria-label="Remove"], button[aria-label*="ad"], button[aria-label*="Ad"]').forEach(function(b) {
       if (b.offsetParent !== null) b.click()
     })
-    document.querySelectorAll('#dismiss-button, ytd-button-renderer#dismiss-button').forEach(function(b) {
+    document.querySelectorAll('#dismiss-button, ytd-button-renderer#dismiss-button, #close-button').forEach(function(b) {
       var btn = b.querySelector('button, a')
       if (btn && btn.offsetParent !== null) btn.click()
     })
-    document.querySelectorAll('ytd-enforcement-message-view-model, ytd-legal-banner, ytd-get-premium, ytd-premium-label').forEach(function(e) { e.style.display = 'none' })
-    var pv = document.querySelector('ytd-player-video')
+    // enforcement / premium nagging
+    document.querySelectorAll('ytd-enforcement-message-view-model, ytd-legal-banner, ytd-get-premium, ytd-premium-label, ytd-premium-upsell, ytd-unlimited-premium-upsell, ytmusic-mealbar-promo-renderer').forEach(function(e) { e.style.display = 'none' })
+    // masthead removal
+    var masthead = document.querySelector('#masthead-ad, ytd-masthead-ad, [masthead-ad]')
+    if (masthead) { masthead.style.display = 'none'; masthead.remove() }
+    // rich section ads (feed)
+    document.querySelectorAll('ytd-rich-section-renderer:has(ytd-ad-slot-renderer), ytd-rich-item-renderer:has([is-ad]), ytd-rich-item-renderer:has([data-is-ad]), ytd-shelf-renderer:has(ytd-ad-slot-renderer)').forEach(function(e) { e.remove() })
+    // player ad overlay
+    var pv = document.querySelector('ytd-player-video, #movie_player')
     if (pv) {
-      var adOverlay = pv.querySelector('.ytp-ad-player-overlay')
+      var adOverlay = pv.querySelector('.ytp-ad-player-overlay, .ytp-ad-overlay-container')
       if (adOverlay) adOverlay.style.display = 'none'
     }
+    // video elements marked as ads
+    document.querySelectorAll('ytd-video-renderer[is-ad], ytd-compact-video-renderer[is-ad], ytd-search-result-renderer[is-ad]').forEach(function(e) { e.style.display = 'none' })
+    // merchant shelf
+    document.querySelectorAll('#merch-shelf, #promotion-shelf, #offer-shelf').forEach(function(e) { e.style.display = 'none' })
+    // ad badges on thumbnails
+    document.querySelectorAll('.ytd-badge-supported-ad, .badge-style-type-ad, [aria-label*="Ad"]').forEach(function(e) { e.style.display = 'none' })
   } catch (e) {}
 }
 
-var adObserver = new MutationObserver(function() { handleAdElements() })
+// Run immediately and then observe
+handleAdElements()
+setTimeout(handleAdElements, 100)
+setTimeout(handleAdElements, 500)
+
+var _adObsTimer = null
+var adObserver = new MutationObserver(function() {
+  if (_adObsTimer) return
+  _adObsTimer = setTimeout(function() { _adObsTimer = null; handleAdElements() }, 200)
+})
 adObserver.observe(document.body, { childList: true, subtree: true })
 
-setInterval(function() { handleAdElements() }, 5000)
+setInterval(function() { handleAdElements() }, 2000)
 
-// ── CSS hide ad elements (comprehensive) ──────────────────────────────────────
-var style = document.createElement('style')
-style.textContent = [
-  // video player ads
-  '.ytp-ad-progress,.ytp-ad-progress-list,.ytp-ad-image-overlay',
-  '.ytp-ad-player-overlay,.ytp-ad-overlay-container,.ytp-ad-module',
-  '.ytp-ad-badge-overlay,.ytp-ad-survey-player-overlay',
-  '.ytp-ad-preview-container,.ytp-ad-text-overlay',
-  '.ytp-ad-message-container,.ytp-ad-skip-button-container',
-  '.ytp-ad-skip-button,.ytp-ad-skip-button-modern',
-  '.ytp-suggested-action-badge',
-  '.ytp-ad-skip-button-slot,.ytp-ad-skip-button-container-slot',
-  '.ytp-ad-progress-thumb,.ytp-ad-progress-line',
-  // feed / sidebar ads
-  'ytd-ad-slot-renderer,ytd-video-masthead-ad-advertiser-info-renderer',
-  'ytd-in-feed-ad-layout-renderer,ytd-banner-promo-renderer',
-  'ytd-promoted-video-renderer,ytd-compact-promoted-video-renderer',
-  'ytd-action-companion-ad-renderer,ytd-display-ad-renderer',
-  'ytd-statement-banner-renderer',
-  '#masthead-ad,#player-ads,#merch-shelf,#promotion-shelf',
-  // premium nagging
-  'ytd-mealbar-promo-renderer,ytd-get-premium,ytd-premium-label',
-  'ytd-enforcement-message-view-model,ytd-legal-banner',
-  'ytd-modal-with-title-and-button-renderer:has(ytd-mealbar-promo-renderer)',
-  'tp-yt-paper-dialog:has(ytd-mealbar-promo-renderer)',
-  'ytd-popup-container:has(ytd-mealbar-promo-renderer)',
-  'ytmusic-mealbar-promo-renderer,ytmusic-ad-slot-renderer',
-  'ytmusic-banner-promo-renderer,ytmusic-display-ad-renderer',
-  '.ytmusic-mealbar-promo,.ytmusic-ad-slot',
-  // shorts ads
-  'ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer)',
-  'ytd-video-renderer:has([data-is-ad])',
-  // other
-  '#clarify-box,#notification-preference-button',
-  'ytd-remarketing-renderer',
-  '#consent-bump,.yt-consent-bump,.g-recaptcha',
-  '.ytp-ad-progress-bar-container',
-  '.ytp-ad-player-overlay-flyout-cta',
-  '.ytp-ad-feedback-dialog'
-].join(',') + '{display:none!important}'
+// ── CSS hide ad elements (backup plan 3) ─────────────────────────────────────
+try {
+  var adStyle = document.createElement('style')
+  adStyle.textContent = [
+    '.ytp-ad-progress,.ytp-ad-progress-list,.ytp-ad-image-overlay',
+    '.ytp-ad-player-overlay,.ytp-ad-overlay-container,.ytp-ad-module',
+    '.ytp-ad-badge-overlay,.ytp-ad-survey-player-overlay',
+    '.ytp-ad-preview-container,.ytp-ad-text-overlay',
+    '.ytp-ad-message-container,.ytp-ad-skip-button-container',
+    '.ytp-ad-skip-button,.ytp-ad-skip-button-modern',
+    '.ytp-suggested-action-badge',
+    '.ytp-ad-skip-button-slot,.ytp-ad-skip-button-container-slot',
+    '.ytp-ad-progress-thumb,.ytp-ad-progress-line',
+    '.ytp-suggested-action,.ytp-suggested-action-badge-with-controls',
+    '#masthead-ad,#masthead-ad-container',
+    'ytd-masthead-ad,[masthead-ad],div[id^=masthead]',
+    'ytd-ad-slot-renderer,ytd-video-masthead-ad-advertiser-info-renderer',
+    'ytd-in-feed-ad-layout-renderer,ytd-banner-promo-renderer',
+    'ytd-promoted-video-renderer,ytd-compact-promoted-video-renderer',
+    'ytd-action-companion-ad-renderer,ytd-display-ad-renderer',
+    'ytd-statement-banner-renderer',
+    'ytd-ad-slot-renderer,ytd-in-feed-ad-layout-renderer',
+    'ytd-video-masthead-ad,[layout$=ad],ytd-ad-slot',
+    'ytd-rich-section-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-rich-item-renderer:has([is-ad])',
+    'ytd-rich-item-renderer:has([data-is-ad])',
+    'ytd-rich-item-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-rich-item-renderer:has(.ytd-ad-slot-renderer)',
+    'ytd-rich-shelf-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-shelf-renderer:has(ytd-ad-slot-renderer)',
+    '#merch-shelf,#promotion-shelf,#offer-shelf',
+    '#player-ads,#player-message',
+    'ytd-mealbar-promo-renderer,ytd-get-premium,ytd-premium-label',
+    'ytd-enforcement-message-view-model,ytd-legal-banner',
+    'ytd-modal-with-title-and-button-renderer:has(ytd-mealbar-promo-renderer)',
+    'tp-yt-paper-dialog:has(ytd-mealbar-promo-renderer)',
+    'ytd-popup-container:has(ytd-mealbar-promo-renderer)',
+    'ytd-unlimited-premium-upsell,ytd-premium-upsell',
+    'ytmusic-mealbar-promo-renderer,ytmusic-ad-slot-renderer',
+    'ytmusic-banner-promo-renderer,ytmusic-display-ad-renderer',
+    'ytmusic-pivot-bar-renderer:has(ytmusic-ad-slot-renderer)',
+    '.ytmusic-mealbar-promo,.ytmusic-ad-slot',
+    'ytmusic-ad-slot,[is-music-ad]',
+    'ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-reel-video-renderer:has([data-is-ad])',
+    'ytd-shorts-ad,ytd-reel-ad',
+    'ytd-video-renderer:has([data-is-ad])',
+    'ytd-video-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-video-renderer[is-ad],ytd-compact-video-renderer[is-ad]',
+    'ytd-search-result-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-search-result-renderer[is-ad]',
+    'ytd-compact-video-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-channel-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-channel-video-player-renderer:has(ytd-ad-slot-renderer)',
+    'ytd-comment-dialog-renderer:has(ytd-ad-slot-renderer)',
+    '#clarify-box,#notification-preference-button',
+    'ytd-remarketing-renderer',
+    'ytmusic-pivot-bar-renderer[ad-active],ytmusic-pivot-bar-renderer:has(ytmusic-ad-slot-renderer)',
+    'ytmusic-responsive-list-item-renderer[is-ad],ytmusic-responsive-list-item-renderer:has(ytmusic-ad-slot-renderer)',
+    'ytmusic-two-row-item-renderer[is-ad],ytmusic-two-row-item-renderer:has([aria-label*="Sponsored"])',
+    'ytmusic-section-list-renderer > ytmusic-shelf-renderer:has(ytmusic-ad-slot-renderer)',
+    'ytmusic-description-shelf-renderer:has(ytmusic-ad-slot-renderer)',
+    'ytmusic-mealbar-promo-renderer,ytmusic-upsell-dialog-renderer',
+    'ytmusic-prompt-banner-renderer,ytmusic-legal-banner',
+    '#consent-bump,.yt-consent-bump,.g-recaptcha',
+    '.ytp-ad-progress-bar-container',
+    '.ytp-ad-player-overlay-flyout-cta',
+    '.ytp-ad-feedback-dialog',
+    '.ytp-ad-skip-button-container,.ytp-ad-skip-button-modern',
+    '.ytp-ad-survey,.ytp-ad-survey-container',
+    '[data-is-ad],[is-ad],[data-ad],[ad-data]'
+  ].join(',') + '{display:none!important}'
+  adStyle.textContent += '\n[data-is-ad=true],[is-ad=true],[data-ad-id],[data-ad-slot],[data-ad-type]{display:none!important}'
+  adStyle.textContent += '\n#page-manager > ytd-browse[page-subtype=home] #contents.ytd-rich-grid-renderer > ytd-rich-section-renderer:first-child{display:none!important}'
+  document.documentElement.appendChild(adStyle)
+} catch(e) {}
 
-// Also hide elements that contain ad attributes
-style.textContent += '\n[data-is-ad=true],[is-ad=true],[data-ad-id],[data-ad-slot],ytd-ad-slot-renderer,ytd-display-ad-renderer{display:none!important}'
+// ── initial video check ──────────────────────────────────────────────────────
+setTimeout(checkForNewVideo, 500)
 
-document.documentElement.appendChild(style)
+// ── cleanup on unload ────────────────────────────────────────────────────────
 
 // ── initial video check ──────────────────────────────────────────────────────
 setTimeout(checkForNewVideo, 500)
@@ -306,15 +415,15 @@ window.addEventListener('beforeunload', function() {
   if (adSkipTimer) clearTimeout(adSkipTimer)
 })
 
+var _toastEl = null
 function showToast(msg) {
-  var t = document.getElementById('_ytd_toast')
-  if (!t) {
-    t = document.createElement('div')
-    t.id = '_ytd_toast'
-    t.style.cssText = 'position:fixed;bottom:50%;left:50%;transform:translate(-50%,50%);background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 16px;font-size:13px;color:#fff;z-index:99999;opacity:0;transition:opacity .25s ease;pointer-events:none;font-family:sans-serif'
-    document.documentElement.appendChild(t)
+  if (!_toastEl) {
+    _toastEl = document.createElement('div')
+    _toastEl.id = '_ytd_toast'
+    _toastEl.style.cssText = 'position:fixed;bottom:50%;left:50%;transform:translate(-50%,50%);background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 16px;font-size:13px;color:#fff;z-index:99999;opacity:0;transition:opacity .2s;pointer-events:none;font-family:sans-serif'
+    document.documentElement.appendChild(_toastEl)
   }
-  t.textContent = msg
-  t.style.opacity = '1'
-  setTimeout(function() { t.style.opacity = '0' }, 2000)
+  _toastEl.textContent = msg
+  _toastEl.style.opacity = '1'
+  setTimeout(function() { _toastEl.style.opacity = '0' }, 2000)
 }

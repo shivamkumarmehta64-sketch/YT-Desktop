@@ -243,9 +243,12 @@ const adDomains = [
   'yoc.com','zypmedia.com'
 ].filter(Boolean)
 
-let mainWindow
-let tray = null
-let lastMediaCall = 0
+var mainWindow
+var tray = null
+var lastMediaCall = 0
+
+var gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) { app.quit() }
 
 function debouncedMedia(action) {
   var now = Date.now()
@@ -259,14 +262,38 @@ function execMedia(action) {
   mainWindow.webContents.send('media-action', action)
 }
 
-app.whenReady().then(async () => {
-  var filter = { urls: adDomains.filter(function(d) { return d && d.length > 0 }).map(function(d) { return '*://*.' + d + '/*' }) }
-  filter.urls.push('*://*.doubleclick.net/*', '*://*.googlesyndication.com/*', '*://*.googleadservices.com/*')
-  session.defaultSession.webRequest.onBeforeRequest(filter, function(d, c) { c({ cancel: true }) })
+function registerAdBlock(sess) {
+  try {
+    var filterUrls = []
+    for (var di = 0; di < adDomains.length; di++) {
+      var d = adDomains[di]
+      if (d && d.length > 0) { filterUrls.push('*://*.' + d + '/*'); filterUrls.push('*://' + d + '/*') }
+    }
+    filterUrls.push('*://*.doubleclick.net/*','*://doubleclick.net/*','*://*.googlesyndication.com/*','*://googlesyndication.com/*','*://*.googleadservices.com/*','*://googleadservices.com/*')
+    sess.webRequest.onBeforeRequest({ urls: filterUrls }, function(d, c) { c({ cancel: true }) })
+    sess.webRequest.onBeforeRequest({
+      urls: [
+        '*://*.youtube.com/api/stats/ads*','*://*.youtube.com/pagead/*','*://*.youtube.com/get_midroll_info*',
+        '*://*.youtube.com/youtubei/v1/ads*','*://*.youtube.com/feed_ajax?*ad*',
+        '*://*.youtube.com/ptracking*','*://*.youtube.com/frame*',
+        '*://*.youtube.com/api/stats/*','*://*.youtube.com/api/ads*',
+        '*://*.youtube.com/youtubei/v1/ad*',
+        '*://*.youtube.com/ss*','*://*.youtube.com/ad*','*://*.youtube.com/pagead*',
+        '*://*.music.youtube.com/api/stats/*','*://*.music.youtube.com/pagead/*',
+        '*://*.music.youtube.com/youtubei/v1/ad*',
+        '*://*.youtube.com/ads/*','*://*.music.youtube.com/ads/*',
+        '*://*.youtube.com/otf/*','*://*.music.youtube.com/otf/*'
+      ]
+    }, function(d, c) { c({ cancel: true }) })
+  } catch(e) { console.error('ad-block err', e) }
+}
 
-  session.defaultSession.webRequest.onBeforeRequest({
-    urls: ['*://*.youtube.com/api/stats/ads*', '*://*.youtube.com/pagead/*', '*://*.youtube.com/get_midroll_info*']
-  }, function(d, c) { c({ cancel: true }) })
+app.whenReady().then(async () => {
+  // Backup plan: register on default session
+  try { registerAdBlock(session.defaultSession) } catch(e) {}
+  // Primary plan: register on dedicated partition (guarantees webview interception)
+  var adSession = session.fromPartition('persist:ytdesktop-adblock')
+  try { registerAdBlock(adSession) } catch(e) {}
 
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
@@ -290,9 +317,13 @@ app.whenReady().then(async () => {
   })
 
   app.setAppUserModelId('com.ytdesktop.app')
-  var trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'tray.png'))
-  if (trayIcon.isEmpty()) trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'))
-  if (trayIcon.isEmpty()) trayIcon = nativeImage.createEmpty()
+  var trayIconPaths = ['icons/tray-32.png','icons/tray.png','icons/tray.ico','icons/tray-16.png','icons/icon.png','icons/icon.ico']
+  var trayIcon = nativeImage.createEmpty()
+  for (var i = 0; i < trayIconPaths.length; i++) {
+    var img = nativeImage.createFromPath(path.join(__dirname, trayIconPaths[i]))
+    if (!img.isEmpty()) { trayIcon = img; break }
+  }
+  if (trayIcon.isEmpty()) trayIcon = nativeImage.createFromPath(path.join(process.resourcesPath, 'build', 'icon.ico'))
   tray = new Tray(trayIcon)
   tray.setToolTip('YT Desktop')
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -305,20 +336,24 @@ app.whenReady().then(async () => {
   ]))
   tray.on('click', function() { mainWindow.show(); mainWindow.focus() })
 
+  app.on('second-instance', function() {
+    if (mainWindow) { mainWindow.show(); mainWindow.focus() }
+  })
+
   globalShortcut.register('MediaPlayPause', function() { debouncedMedia('toggle') })
   globalShortcut.register('MediaNextTrack', function() { debouncedMedia('next') })
   globalShortcut.register('MediaPreviousTrack', function() { debouncedMedia('prev') })
+
+  mainWindow.on('maximize', function() { mainWindow.webContents.send('window-state-changed', true) })
+  mainWindow.on('unmaximize', function() { mainWindow.webContents.send('window-state-changed', false) })
 })
 
-ipcMain.handle('minimize-to-tray', function() { mainWindow.hide() })
+ipcMain.handle('minimize-to-tray', function() { mainWindow?.hide() })
 ipcMain.handle('quit-app', function() { app.isQuitting = true; app.quit() })
-ipcMain.handle('window-minimize', function() { mainWindow.minimize() })
-ipcMain.handle('window-maximize', function() { if (mainWindow.isMaximized()) { mainWindow.unmaximize() } else { mainWindow.maximize() } })
-ipcMain.handle('window-close', function() { mainWindow.close() })
-ipcMain.handle('window-is-maximized', function() { return mainWindow.isMaximized() })
-
-mainWindow.on('maximize', function() { mainWindow.webContents.send('window-state-changed', true) })
-mainWindow.on('unmaximize', function() { mainWindow.webContents.send('window-state-changed', false) })
+ipcMain.handle('window-minimize', function() { mainWindow?.minimize() })
+ipcMain.handle('window-maximize', function() { if (mainWindow?.isMaximized()) { mainWindow.unmaximize() } else { mainWindow?.maximize() } })
+ipcMain.handle('window-close', function() { mainWindow?.close() })
+ipcMain.handle('window-is-maximized', function() { return mainWindow?.isMaximized() ?? false })
 
 app.on('will-quit', function() { globalShortcut.unregisterAll() })
 app.on('window-all-closed', function() { if (process.platform !== 'darwin') app.quit() })

@@ -37,6 +37,7 @@ body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
 /* ── webview ── */
 #player-wrap{flex:1;display:flex;position:relative}
 #player-wrap webview{flex:1}
+#player-wrap[data-loading]::after{content:'Loading...';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,0.2);font-size:14px}
 
 /* ── pip ── */
 #pip-window{display:none;position:fixed;bottom:80px;right:20px;width:360px;height:220px;border-radius:14px;overflow:hidden;z-index:9999;box-shadow:0 12px 48px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.06);background:#000}
@@ -82,7 +83,7 @@ body{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
       ⏱<span class="tooltip">Sleep (Ctrl+Shift+S)</span>
     </button>
     <button id="tray-btn">
-      _<span class="tooltip">Minimize to tray</span>
+      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg><span class="tooltip">Minimize to tray</span>
     </button>
     <button id="quit-btn">
       ⏻<span class="tooltip">Quit (Ctrl+Q)</span>
@@ -114,10 +115,13 @@ function createWebview(src) {
   var wv = document.createElement('webview')
   wv.setAttribute('preload', './preload.js')
   wv.setAttribute('allowpopups', '')
+  wv.setAttribute('partition', 'persist:ytdesktop-adblock')
   wv.setAttribute('webpreferences', 'contextIsolation=no')
   wv.style.flex = '1'
   wv.src = src
   wrap.appendChild(wv)
+  wrap.dataset.loading = '1'
+  wv.addEventListener('did-stop-loading', function() { delete wrap.dataset.loading })
   wv.addEventListener('new-window', function(e) {
     if (e.url.startsWith('https://')) { wv.src = e.url }
   })
@@ -137,11 +141,11 @@ tabs.forEach(function(t, i) {
 })
 
 // ── titlebar controls ──
-document.getElementById('min-btn').addEventListener('click', function() { window.api.minimizeWindow() })
-document.getElementById('max-btn').addEventListener('click', function() { window.api.maximizeWindow() })
-document.getElementById('close-btn').addEventListener('click', function() { window.api.closeWindow() })
+document.getElementById('min-btn').addEventListener('click', function() { window.api?.minimizeWindow() })
+document.getElementById('max-btn').addEventListener('click', function() { window.api?.maximizeWindow() })
+document.getElementById('close-btn').addEventListener('click', function() { window.api?.closeWindow() })
 
-window.api.onWindowState(function(maximized) {
+window.api?.onWindowState(function(maximized) {
   document.getElementById('max-btn').textContent = maximized ? '❐' : '☐'
 })
 
