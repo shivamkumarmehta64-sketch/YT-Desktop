@@ -1,0 +1,14 @@
+name: Feature Request
+description: Suggest an idea for YT Desktop
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like added?
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: Alternatives considered
