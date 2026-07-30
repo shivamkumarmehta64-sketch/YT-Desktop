@@ -17,7 +17,7 @@
   "build": {
     "appId": "com.ytdesktop.app",
     "productName": "YT Desktop",
-    "icon": "build/icon.png",
+    "icon": "build/icon.ico",
     "win": {
       "target": ["nsis", "portable"],
       "sign": false
@@ -29,3 +29,4 @@
     "extraResources": []
   }
 }
+
