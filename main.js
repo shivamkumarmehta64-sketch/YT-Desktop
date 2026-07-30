@@ -256,22 +256,7 @@ function debouncedMedia(action) {
 
 function execMedia(action) {
   if (!mainWindow) return
-  var wc = mainWindow.webContents
-  var url = mainWindow.getURL() || ''
-  var isMusic = url.indexOf('music') > -1
-  if (action === 'toggle') {
-    wc.executeJavaScript(isMusic
-      ? "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=play]')?.click() || document.querySelector('.play-pause-button')?.click()"
-      : "document.querySelector('video')?.paused ? document.querySelector('video')?.play() : document.querySelector('video')?.pause()")
-  } else if (action === 'next') {
-    wc.executeJavaScript(isMusic
-      ? "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=skip]')?.click() || document.querySelector('.next-button')?.click()"
-      : "document.querySelector('.ytp-next-button')?.click()")
-  } else if (action === 'prev') {
-    wc.executeJavaScript(isMusic
-      ? "document.querySelector('ytmusic-player-bar paper-icon-button[icon*=previous]')?.click() || document.querySelector('.previous-button')?.click()"
-      : "document.querySelector('.ytp-prev-button')?.click()")
-  }
+  mainWindow.webContents.send('media-action', action)
 }
 
 app.whenReady().then(async () => {

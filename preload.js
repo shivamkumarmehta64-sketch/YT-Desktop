@@ -9,6 +9,20 @@ window.api = {
   onWindowState: (cb) => { ipcRenderer.on('window-state-changed', (e, v) => cb(v)) }
 }
 
+ipcRenderer.on('media-action', function(event, action) {
+  var wv = document.querySelector('webview')
+  if (!wv) return
+  var js = ''
+  if (action === 'toggle') {
+    js = "(function(){var v=document.querySelector('video');if(v)v.paused?v.play():v.pause()})()"
+  } else if (action === 'next') {
+    js = "document.querySelector('.ytp-next-button')?.click()"
+  } else if (action === 'prev') {
+    js = "document.querySelector('.ytp-prev-button')?.click()"
+  }
+  if (js) wv.executeJavaScript(js)
+})
+
 // ── SponsorBlock: skip sponsored segments ────────────────────────────────────
 var sponsorBlockCache = {}
 function fetchSponsorSegments(videoId) {
