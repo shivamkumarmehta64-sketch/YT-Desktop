@@ -9,6 +9,9 @@ WebView2Loader.dll
 Microsoft.Web.WebView2.Core.dll
 Microsoft.Web.WebView2.WinForms.dll
 
+# Runtime logs
+debug.log
+
 # Windows generated
 *.suo
 *.user
