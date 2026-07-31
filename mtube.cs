@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
@@ -11,9 +13,37 @@ namespace Mtube
 {
     static class Program
     {
+        private static Mutex mutex = null;
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
         [STAThread]
         static void Main()
         {
+            const string appName = "Mtube_SingleInstance_Mutex_9b2d0d52";
+            bool createdNew;
+
+            mutex = new Mutex(true, appName, out createdNew);
+
+            if (!createdNew)
+            {
+                // Process is already running — bring existing window to front
+                Process current = Process.GetCurrentProcess();
+                foreach (Process process in Process.GetProcessesByName(current.ProcessName))
+                {
+                    if (process.Id != current.Id && process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        ShowWindow(process.MainWindowHandle, 9); // SW_RESTORE = 9
+                        SetForegroundWindow(process.MainWindowHandle);
+                        break;
+                    }
+                }
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
@@ -35,6 +65,8 @@ namespace Mtube
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        [DllImport("kernel32.dll")]
+        private static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
 
         private const int WM_HOTKEY = 0x0312;
         private const uint VK_MEDIA_PLAY_PAUSE = 0xB3;
@@ -45,7 +77,7 @@ namespace Mtube
         {
             logPath = Path.Combine(
                 Path.GetDirectoryName(Application.ExecutablePath), "debug.log");
-            Log("=== mtube v3 starting ===");
+            Log("=== mtube v3.1 starting ===");
 
             this.Text = "YouTube Music";
             this.Width = 1280;
@@ -57,7 +89,6 @@ namespace Mtube
             if (File.Exists(iconPath))
                 this.Icon = new Icon(iconPath);
 
-            // Loading label
             statusLabel = new Label();
             statusLabel.Text = "Loading YouTube Music...";
             statusLabel.ForeColor = Color.FromArgb(180, 180, 180);
@@ -79,23 +110,28 @@ namespace Mtube
             catch { }
         }
 
-        // ─── Timers: GC every 60s ────────────────────────────────────────────────
-
-        private void SetupTimers()
+        private void TrimWorkingSetRAM()
         {
-            // Sleep timer
-            sleepTimer = new System.Windows.Forms.Timer();
-            sleepTimer.Tick += OnSleepTimerTick;
-
-            // GC trim every 60 seconds to keep RAM low
-            gcTimer = new System.Windows.Forms.Timer();
-            gcTimer.Interval = 60000;
-            gcTimer.Tick += (s, e) =>
+            try
             {
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect(2, GCCollectionMode.Optimized, false);
                 GC.WaitForPendingFinalizers();
-            };
+                SetProcessWorkingSetSize(Process.GetCurrentProcess().Handle, (IntPtr)(-1), (IntPtr)(-1));
+            }
+            catch { }
+        }
+
+        // ─── Timers: GC every 60s ────────────────────────────────────────────────
+
+        private void SetupTimers()
+        {
+            sleepTimer = new System.Windows.Forms.Timer();
+            sleepTimer.Tick += OnSleepTimerTick;
+
+            gcTimer = new System.Windows.Forms.Timer();
+            gcTimer.Interval = 60000;
+            gcTimer.Tick += (s, e) => TrimWorkingSetRAM();
             gcTimer.Start();
         }
 
@@ -118,8 +154,6 @@ namespace Mtube
                 Log("UserDataFolder: " + userDataFolder);
                 statusLabel.Text = "Initializing browser engine...";
 
-                // ── MEMORY OPTIMIZATION: limit browser RAM via launch args ────────
-                // These flags tell Chromium (WebView2) to use less memory
                 var options = new CoreWebView2EnvironmentOptions(
                     "--disk-cache-size=33554432 " +       // 32 MB disk cache
                     "--media-cache-size=33554432 " +      // 32 MB media cache
@@ -139,20 +173,18 @@ namespace Mtube
                 await webView.EnsureCoreWebView2Async(env);
                 Log("WebView2 ready");
 
-                // Grant notification permission silently
                 webView.CoreWebView2.PermissionRequested += (s, e) =>
                 {
                     if (e.PermissionKind == CoreWebView2PermissionKind.Notifications)
                         e.State = CoreWebView2PermissionState.Allow;
                 };
 
-                // Suspend WebView2 (release RAM) when window is minimized or hidden
                 this.Resize += (s, e) =>
                 {
                     if (this.WindowState == FormWindowState.Minimized)
                     {
                         webView.CoreWebView2.TrySuspendAsync();
-                        GC.Collect(2, GCCollectionMode.Optimized, false);
+                        TrimWorkingSetRAM();
                     }
                     else
                     {
@@ -160,11 +192,9 @@ namespace Mtube
                     }
                 };
 
-                // Inject ad-block JS before page loads
                 await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(GetAdBlockerJS());
                 Log("JS injected");
 
-                // Network-level ad domain blocking
                 SetupNetworkBlocking();
                 Log("Network blocking set");
 
@@ -221,7 +251,7 @@ namespace Mtube
             };
         }
 
-        // ─── Layer 2 + 3 + SponsorBlock + Audio-Only ─────────────────────────────
+        // ─── Layer 2 + 3 + Anti-Adblock Bypass + SponsorBlock ───────────────────
 
         private string GetAdBlockerJS()
         {
@@ -275,7 +305,8 @@ namespace Mtube
         'ytd-banner-promo-renderer,ytd-statement-banner-renderer,',
         'ytd-display-ad-renderer,.ytp-ad-module,.ytp-ad-player-overlay,',
         '.ytp-ad-image-overlay,.ytp-ad-text-overlay,.ytp-ce-element,',
-        '.ytp-suggested-action,#masthead-ad',
+        '.ytp-suggested-action,#masthead-ad,ytd-enforcement-message-view-model,',
+        'tp-yt-paper-dialog:has(ytd-enforcement-message-view-model)',
         '{display:none!important}'
     ].join('');
     document.head.appendChild(style);
@@ -297,6 +328,13 @@ namespace Mtube
                     video.muted = false;
                 }
             }
+            // Dismiss anti-adblock modals
+            var popup = document.querySelector('ytd-enforcement-message-view-model');
+            if (popup) {
+                var btn = popup.querySelector('button') || document.querySelector('.yt-spec-button-shape-next');
+                if (btn) btn.click();
+                popup.remove();
+            }
         } catch(e) {}
         setTimeout(checkAds, 500);
     }
@@ -306,7 +344,7 @@ namespace Mtube
         new MutationObserver(function() {
             try {
                 var els = document.querySelectorAll(
-                    'ytmusic-mealbar-promo-renderer,ytd-ad-slot-renderer,.ytp-ad-module');
+                    'ytmusic-mealbar-promo-renderer,ytd-ad-slot-renderer,.ytp-ad-module,ytd-enforcement-message-view-model');
                 for (var i = 0; i < els.length; i++) els[i].style.display = 'none';
             } catch(e) {}
         }).observe(document.documentElement, {childList:true, subtree:true});
@@ -371,7 +409,7 @@ true;
 ";
         }
 
-        // ─── System Tray — Zero popups ────────────────────────────────────────────
+        // ─── System Tray ──────────────────────────────────────────────────────────
 
         private void SetupTray()
         {
@@ -384,6 +422,7 @@ true;
 
             var menu = new ContextMenuStrip();
             menu.Items.Add("Show YouTube Music", null, (s, e) => ShowMainWindow());
+            menu.Items.Add("Open YouTube Desktop", null, (s, e) => LaunchYtube());
             menu.Items.Add(new ToolStripSeparator());
 
             var audioItem = new ToolStripMenuItem("Audio-Only Mode");
@@ -410,12 +449,31 @@ true;
             trayIcon.ContextMenuStrip = menu;
             trayIcon.Visible = true;
 
-            // Left double-click = restore. Right-click = context menu. No popups ever.
             trayIcon.MouseDoubleClick += (s, e) =>
             {
                 if (e.Button == MouseButtons.Left)
                     ShowMainWindow();
             };
+        }
+
+        private void LaunchYtube()
+        {
+            try
+            {
+                string ytubePath = Path.Combine(
+                    Path.GetDirectoryName(Application.StartupPath), "ytube", "ytube.exe");
+                if (File.Exists(ytubePath))
+                {
+                    Process.Start(ytubePath);
+                }
+                else
+                {
+                    string desktopLnk = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "YouTube Desktop.lnk");
+                    if (File.Exists(desktopLnk)) Process.Start(desktopLnk);
+                }
+            }
+            catch { }
         }
 
         private void OnSleepTimerTick(object sender, EventArgs e)
@@ -487,15 +545,13 @@ true;
         {
             if (e.CloseReason == CloseReason.UserClosing)
             {
-                // Minimize to tray — zero popup, zero balloon tip, zero notification
                 e.Cancel = true;
                 this.Hide();
 
-                // Suspend WebView2 to free RAM while in tray
                 if (webViewReady)
                 {
                     webView.CoreWebView2.TrySuspendAsync();
-                    GC.Collect(2, GCCollectionMode.Optimized, false);
+                    TrimWorkingSetRAM();
                 }
             }
             else
