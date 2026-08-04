@@ -257,6 +257,16 @@ function debouncedMedia(action) {
   execMedia(action)
 }
 
+// ── GPU & Rendering Performance Flags ──────────────────────────────────────
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,HardwareMediaKeyHandling');
+
+// Set app identity for Windows Volume Mixer & Sound Bar recognition
+app.name = 'mtube';
+if (process.platform === 'win32') app.setAppUserModelId('com.shivam.mtube');
+
 function execMedia(action) {
   if (!mainWindow) return
   mainWindow.webContents.send('media-action', action)

@@ -7,21 +7,22 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win nsis",
-    "dist-portable": "electron-builder --win portable",
-    "dist-linux": "electron-builder --linux AppImage"
+    "build-linux-appimage": "electron-builder -l --config.linux.target=AppImage",
+    "build-linux-deb": "electron-builder -l --config.linux.target=deb"
   },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
   },
   "build": {
-    "appId": "com.ytdesktop.app",
-    "productName": "YT Desktop",
     "icon": "icons/icon.ico",
     "files": ["**/*", "!dist", "!node_modules"],
     "win": {
       "target": ["nsis", "portable"],
-      "sign": false
+      "sign": false,
+      "legalTrademarks": "mtube",
+      "companyName": "Shivam Mehta",
+      "fileDescription": "mtube — Lightweight Ad-Free YouTube Music Client"
     },
     "portable": {
       "artifactName": "YT-Desktop-${version}-portable.${ext}"
